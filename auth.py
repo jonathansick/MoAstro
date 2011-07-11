@@ -7,6 +7,18 @@ The `Credentials` class can be used by any class to supply a username
 and password to for moastro modules that are connected to a MongoDB
 database that is secured.
 
+.. todo:: Think about supporting SSH tunnels instead of relying on MongoDB
+   authorizations.
+   
+   e.g. ssh -L 27017:localhost:27017 user@myserver
+
+   See http://groups.google.com/group/mongomapper/browse_thread/thread/80a11b06cf1f7711
+
+.. todo:: Use the singleton design pattern for Credentials
+
+.. todo:: Should Credentials be renamed to Connector, or spun-out of the
+   connection process?
+
 History
 -------
 2011-07-11 - Created by Jonathan Sick
