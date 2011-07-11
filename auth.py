@@ -10,7 +10,6 @@ database that is secured.
 History
 -------
 2011-07-11 - Created by Jonathan Sick
-
 """
 import json
 import pymongo
@@ -22,16 +21,18 @@ class Credentials(object):
 
     Credentials for MongoDB databases are written in `~/.moastro_auth` in
     JSON format. For example:
-
-    {"localhost":
-        {"my_db": {
-            "user": "jsick",
-            "pwd": "mypwd"},
-         "my_other_db": {
-            "user": "jsick",
-            "pwd": "mypwd"},
-        }
-    }
+    
+    .. code-block:: none
+       
+       {"localhost":
+            {"my_db": {
+                "user": "jsick",
+                "pwd": "mypwd"},
+            "my_other_db": {
+                "user": "jsick",
+                "pwd": "mypwd"},
+            }
+       }
 
     """
     def __init__(self):
