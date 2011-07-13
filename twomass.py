@@ -41,8 +41,17 @@ PSC_FORMAT = (('ra',float),('dec',float),('err_maj',float),('err_min',float),
 
 class PSC(object):
     """2MASS Point Source Catalog representation in MongoDB."""
-    def __init__(self):
-        pass
+    def __init__(self, host="localhost", port=27017, dbname="twomass",
+            cname="psc"):
+        self.host = host
+        self.port = port
+        self.dbname = dbname
+        self.cname = cname
+
+        conn = pymongo.Connection(host=host, port=port)
+        cred = auth.Credentials()
+        db = cred.connect_db(dbname, c=conn)
+        self.collection = db[cname]
 
     @classmethod
     def import_psc(cls, dataPath, host="localhost", port=27017, dbname="twomass",
@@ -70,11 +79,34 @@ class PSC(object):
             collection.insert(doc)
         f.close()
         collection.ensure_index([("coord",pymongo.GEO2D)])
+        PSC.generate_colors(collection)
+
+    @classmethod
+    def generate_colors(self, collection):
+        """Generate J-H, J-K and H-K color indices."""
+        indices = (('j_m','h_m'),('j_m','k_m'),('h_m','k_m'))
+        for (c1,c2) in indices:
+            colourName = "%s-%s" % (c1, c2)
+            spec = {c1: {"$exists": True}, c2: {"$exists": True},
+                    colourName: {"$exists": True}}
+            recs = collection.find(spec, fields=[c1,c2])
+            print "Making %s colour for %i stars" % (colourName.upper(),
+                    recs.count())
+            for rec in recs:
+                colour = rec[c1] - rec[c2]
+                collection.update(rec['_id'], {"$set": {colourName: colour}})
+
+
+    def find(self, spec):
+        """docstring for find"""
+        pass
+
+
 
 
 def test_import_psc(testPath, host="localhost", port=27017, dbname="twomass",
         cname="psc", drop=True):
-    """docstring for import_psc"""
+    """Import the test_psc practice file."""
     PSC.import_psc(testPath, drop=drop)
 
 def import_decompressed_psc(dataDir):
@@ -93,6 +125,8 @@ def import_decompressed_psc(dataDir):
 
 if __name__ == '__main__':
     #test_import_psc("/Volumes/Zaphod/m31/data/2mass_psc/practice/test_psc")
-    import_decompressed_psc("/Volumes/Zaphod/m31/data/2mass_psc")
+    #import_decompressed_psc("/Volumes/Zaphod/m31/data/2mass_psc")
+    psc = PSC()
+    PSC.generate_colors(psc.collection)
 
 
