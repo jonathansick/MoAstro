@@ -23,6 +23,7 @@ History
 -------
 2011-07-11 - Created by Jonathan Sick
 """
+import os
 import json
 import pymongo
 
@@ -49,7 +50,9 @@ class Credentials(object):
     """
     def __init__(self):
         self.connections = {}
-        self._credentials = self._load_credentials()
+        self._credentials = {}
+        if os.path.exists(".moastro.auth"):
+            self._credentials = self._load_credentials()
 
     def _load_credentials(self):
         """Reads credentials from `~/.moastro_auth`."""
@@ -57,16 +60,17 @@ class Credentials(object):
         credData = json.loads(f)
         f.close()
 
-        self.credentials = {}
+        credentials = {}
         for host in credData.iteritems():
-            self.credentials[host] = {}
+            credentials[host] = {}
             for dbName, v in credData[host].iteritems():
                 if 'user' not in v: continue
                 if 'pwd' not in v: continue
                 if type(v['user']) is not unicode: continue
                 if type(v['pwd']) is not unicode: continue
-                self.credentials[host][dbName] = {'user': v['user'],
+                credentials[host][dbName] = {'user': v['user'],
                         'pwd': v['pwd']}
+        return credentials
 
     def connect_db(self, dbname, c=None, host="localhost", port=27017):
         """Authorizes a MongoDB database, returning the DB instance.
@@ -100,16 +104,13 @@ class Credentials(object):
         db = c[dbname]
 
         # Figure out if we need to authenticate
-        if 'user' in self.credentials[host][dbname] and \
-                'pwd' in self.credentials[host][dbname]:
-            user = self.credentials[host][dbname]['user']
-            password = self.credentials[host][dbname]['pwd']
-            db.authenticate(user, password)
+        if host in self._credentials:
+            if 'user' in self._credentials[host][dbname] and \
+                    'pwd' in self._credentials[host][dbname]:
+                user = self._credentials[host][dbname]['user']
+                password = self._credentials[host][dbname]['pwd']
+                db.authenticate(user, password)
 
         return db
-
-
-if __name__ == '__main__':
-    main()
 
 
