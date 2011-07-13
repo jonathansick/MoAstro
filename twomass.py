@@ -78,7 +78,8 @@ class PSC(object):
             doc['galactic'] = (glon,glat)
             collection.insert(doc)
         f.close()
-        collection.ensure_index([("coord",pymongo.GEO2D)])
+        collection.ensure_index([("coord",pymongo.GEO2D),
+            ("min",-90.), ("max",360.)])
         PSC.generate_colors(collection)
 
     @classmethod
