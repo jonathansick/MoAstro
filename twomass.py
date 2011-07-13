@@ -12,13 +12,14 @@ History
 __all__ = ['']
 
 import os
-import tempfile
+import glob
 
 import pymongo
-import pymongo.GEO2D
 
 import numpy as np
 import pylab as pl
+
+import auth
 
 PSC_FORMAT = (('ra',float),('dec',float),('err_maj',float),('err_min',float),
     ('err_ang',int),('designation',unicode),('j_m',float),('j_cmsig',float),
@@ -44,7 +45,7 @@ class PSC(object):
         pass
 
     @classmethod
-    def import(cls, dataPath, host="localhost", port=27017, dbname="twomass",
+    def import_psc(cls, dataPath, host="localhost", port=27017, dbname="twomass",
             cname="psc", drop=False):
         """Build a PSC database in MongoDB from the ascii data sources"""
         c = pymongo.Connection(host=host, port=port)
@@ -71,7 +72,27 @@ class PSC(object):
         collection.ensure_index([("coord",pymongo.GEO2D)])
 
 
+def test_import_psc(testPath, host="localhost", port=27017, dbname="twomass",
+        cname="psc", drop=True):
+    """docstring for import_psc"""
+    PSC.import_psc(testPath, drop=drop)
+
+def import_decompressed_psc(dataDir):
+    """Import decompressed PSC text catalogs from dataDir.
+    
+    The psc collection is dropped before this operation.
+    """
+    filePaths = glob.glob(os.path.join(dataDir, "psc_*"))
+    drop = True
+    for filePath in filePaths:
+        basename = os.path.split(filePath)[-1]
+        if len(basename) != 7: continue # only look at decompressed files
+        print "Loading %s" % filePath
+        PSC.import_psc(filePath, drop=drop)
+        drop=False
+
 if __name__ == '__main__':
-    main()
+    #test_import_psc("/Volumes/Zaphod/m31/data/2mass_psc/practice/test_psc")
+    import_decompressed_psc("/Volumes/Zaphod/m31/data/2mass_psc")
 
 
