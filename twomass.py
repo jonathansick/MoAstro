@@ -135,6 +135,7 @@ def import_decompressed_psc(dataDir):
         print "Loading %s" % filePath
         PSC.import_psc(filePath, drop=drop)
         drop = False
+    PSC.index_space_color()
 
 def reset_psc():
     """Drops the 2MASS PSC collection!"""
@@ -143,6 +144,7 @@ def reset_psc():
 
 if __name__ == '__main__':
     #test_import_psc("/Volumes/Zaphod/m31/data/2mass_psc/practice/test_psc")
-    import_decompressed_psc("/Volumes/Zaphod/m31/data/2mass_psc")
-    
+    #import_decompressed_psc("/Volumes/Zaphod/m31/data/2mass_psc")
+    #PSC.index_space_color()
+    pass
 
