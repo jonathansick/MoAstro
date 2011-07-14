@@ -15,6 +15,7 @@ import os
 import glob
 
 import pymongo
+from pymongo import ASCENDING, DESCENDING, GEO2D
 
 import numpy as np
 import pylab as pl
@@ -60,7 +61,11 @@ class PSC(object):
         c = pymongo.Connection(host=host, port=port)
         cred = auth.Credentials()
         db = cred.connect_db("twomass", c=c)
+        if drop:
+            db.drop_collection(cname)
         collection = db[cname]
+        
+        colourIndices = (('j_m','h_m'),('j_m','k_m'),('h_m','k_m'))
         
         f = open(dataPath, 'r')
         for line in f:
@@ -68,35 +73,42 @@ class PSC(object):
             items = line.split("|")
             doc = {}
             for (name, dtype), item in zip(PSC_FORMAT, items):
-                if item == "\N": continue
+                if item == "\N": continue # ignore null values
+                # Don't add spatial quantities directly; storing (RA,Dec) and
+                # (long, lat) as tuples lets us make geospatial indices
                 if name == "ra": ra = dtype(item)
                 elif name == "dec": dec = dtype(item)
                 elif name == "glon": glon = dtype(item)
                 elif name == "glat": glat = dtype(item)
                 else: doc[name] = dtype(item)
+            # Insert geospatial fields
             doc['coord'] = (ra, dec)
             doc['galactic'] = (glon,glat)
+            # Pre-compute colours
+            for (c1, c2) in colourIndices:
+                colourName = "%s-%s" % (c1, c2)
+                if (c1 in doc) and (c2 in doc):
+                    doc[colourName] = doc[c1] - doc[c2]
             collection.insert(doc)
         f.close()
-        collection.ensure_index([("coord",pymongo.GEO2D),
-            ("min",-90.), ("max",360.)])
-        PSC.generate_colors(collection)
 
     @classmethod
-    def generate_colors(self, collection):
-        """Generate J-H, J-K and H-K color indices."""
-        indices = (('j_m','h_m'),('j_m','k_m'),('h_m','k_m'))
-        for (c1,c2) in indices:
-            colourName = "%s-%s" % (c1, c2)
-            spec = {c1: {"$exists": True}, c2: {"$exists": True},
-                    colourName: {"$exists": True}}
-            recs = collection.find(spec, fields=[c1,c2])
-            print "Making %s colour for %i stars" % (colourName.upper(),
-                    recs.count())
-            for rec in recs:
-                colour = rec[c1] - rec[c2]
-                collection.update(rec['_id'], {"$set": {colourName: colour}})
+    def index_space_color(cls, host="localhost", port=27017, dbname="twomass",
+            cname="psc"):
+        """Generates an geospatial+colour+magnitude index.
+        
+        The index is constructed so that RA,Dec is indexed first as this
+        is most useful in using 2MASS for targeted applications.
+        """
+        c = pymongo.Connection(host=host, port=port)
+        cred = auth.Credentials()
+        db = cred.connect_db("twomass", c=c)
+        collection = db[cname]
 
+        collection.ensure_index([("coord",GEO2D),("j_m-k_m",ASCENDING),
+            ("k_m",ASCENDING),("j_m",ASCENDING),("h_m",ASCENDING),
+            ("h_m",ASCENDING),("h_m-k_m",ASCENDING),("j_m-h_m",ASCENDING)],
+            min=-90., max=360., name="radec_color")
 
     def find(self, spec):
         """docstring for find"""
@@ -122,12 +134,15 @@ def import_decompressed_psc(dataDir):
         if len(basename) != 7: continue # only look at decompressed files
         print "Loading %s" % filePath
         PSC.import_psc(filePath, drop=drop)
-        drop=False
+        drop = False
+
+def reset_psc():
+    """Drops the 2MASS PSC collection!"""
+    db = pymongo.Connection()['twomass']
+    db.drop_collection('psc')
 
 if __name__ == '__main__':
     #test_import_psc("/Volumes/Zaphod/m31/data/2mass_psc/practice/test_psc")
-    #import_decompressed_psc("/Volumes/Zaphod/m31/data/2mass_psc")
-    psc = PSC()
-    PSC.generate_colors(psc.collection)
-
+    import_decompressed_psc("/Volumes/Zaphod/m31/data/2mass_psc")
+    
 
