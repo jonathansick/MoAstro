@@ -17,8 +17,7 @@ import glob
 import pymongo
 from pymongo import ASCENDING, DESCENDING, GEO2D
 
-import numpy as np
-import pylab as pl
+import pywcs
 
 import auth
 
@@ -182,6 +181,20 @@ class PSC(object):
         spec.update(spatialSpec)
         getFields = self.default_fields + fields
         return self.c.find(spec, getFields)
+
+    def _make_spatial_wcs(self, wcs):
+        """Make a spatial query spec from a PyWCS WCS instance."""
+        poly = wcs.calcFootprint(wcs) # (4,2) array
+        # Reduce the polygon to a box. MongoDB 1.9+ will support polygons
+        allRA = [c[0] for c in poly]
+        allDec = [c[1] for c in poly]
+        box = [[min(allRA),min(allDec)], [max(allRA),max(allDec)]]
+        return {"coord": {"$within": {"$box": box}}}
+
+    def _make_spatial_header(self, header):
+        """Make a spatial query spec from a PyFITS header instance."""
+        wcs = pywcs.WCS(header)
+        return self._make_spatial_wcs(wcs)
 
 
 def test_import_psc(testPath, host="localhost", port=27017, dbname="twomass",
