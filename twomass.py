@@ -160,8 +160,8 @@ class PSC(object):
 
         Examples
         --------
-        To query for all stars with *J-Ks > 0.5* mag within 2 degrees of M31, and
-        returning only the RA,Dec position, J magnitude and Ks magnitude:
+        To query for all stars with $J-K_s > 0.5$ mag within 2 degrees of M31, and
+        returning only the RA,Dec position, $J$ magnitude and $K_s$ magnitude:
 
         >>> psc = PSC()
         >>> recs = psc.find({"j_m-k_m": {"$gt": 0.5}},

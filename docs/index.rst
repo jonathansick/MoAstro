@@ -13,6 +13,7 @@ Contents:
    
    intro
    auth
+   twomass
 
 Indices and tables
 ==================
