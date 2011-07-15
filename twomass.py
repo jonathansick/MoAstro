@@ -49,6 +49,8 @@ class PSC(object):
         self.dbname = dbname
         self.cname = cname
 
+        self.default_fields = ['coord', 'j_m', 'h_m', 'k_m']
+
         conn = pymongo.Connection(host=host, port=port)
         cred = auth.Credentials()
         db = cred.connect_db(dbname, c=conn)
@@ -110,11 +112,76 @@ class PSC(object):
             ("h_m",ASCENDING),("h_m-k_m",ASCENDING),("j_m-h_m",ASCENDING)],
             min=-90., max=360., name="radec_color")
 
-    def find(self, spec):
-        """docstring for find"""
-        pass
+    def find(self, spec, fields=[], center=None, radius=None, box=None,
+            header=None, wcs=None):
+        """General purpose query method for 2MASS PSC.
 
+        .. todo:: Use exceptions to make spatial query resolution chain
+           more robust.
+        
+        Parameters
+        ----------
+        spec : dict
+            A `pymongo` query specification. Note that spatial query
+            parameters will override those passed in spec.
+        fields : list
+            List of PSC fields to return (in addition to
+            `self.default_fields`.)
+        center: (2,) tuple or list
+            For spherical spatial queries, defines the query center as
+            an (RA, Dec.) tuple in degrees.
+        radius: float (degrees)
+            Radius of the spherical query, in degrees. Use with `center`.
+        box: list or tuple `[[RA_min,Dec_min],[RA_max,Dec_max]]`
+            Queries for stars inside a rectangular range of RA and Dec. Assumes
+            decimal degrees for RA and Dec.
+        header: `pyfits.header` instance
+            Queries stars within the footprint defined by the `pyfits` image
+            header.
+        wcs: pywcs.WCS instance
+            Queries stars within the footprint defined by the WCS.
+        
+        Returns
+        -------
+        recs : `pymongo.Cursor` instance
+            The cursor can be iterated to access each star. Stars are
+            represented as dictionaries whose keys are the requested
+            data `fields`.
 
+        Notes
+        -----
+        Only one type of spatial query is performed, even if several are
+        defined by the keyword arguments passed by the user. The spatial
+        query is resolved in the following order:
+
+        1. wcs
+        2. header
+        3. box
+        4. center and radius
+
+        Examples
+        --------
+        To query for all stars with *J-Ks > 0.5* mag within 2 degrees of M31, and
+        returning only the RA,Dec position, J magnitude and Ks magnitude:
+
+        >>> psc = PSC()
+        >>> recs = psc.find({"j_m-k_m": {"$gt": 0.5}},
+                fields=["coord","j_m","k_m"],
+                center=(13.,41.), radius=2.)
+        """
+        if wcs is not None:
+            spatialSpec = self._make_spatial_wcs(wcs)
+        elif header is not None:
+            spatialSpec = self._make_spatial_header(header)
+        elif box is not None:
+            spatialSpec = {"coord": {"$within": {"$box": box}}}
+        elif center is not None and radius is not None:
+            spatialSpec = {"coord": {"$within": {"$center": [center,radius]}}}
+        else:
+            spatialSpec = {}
+        spec.update(spatialSpec)
+        getFields = self.default_fields + fields
+        return self.c.find(spec, getFields)
 
 
 def test_import_psc(testPath, host="localhost", port=27017, dbname="twomass",
