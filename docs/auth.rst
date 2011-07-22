@@ -52,7 +52,8 @@ Use paramiko? http://www.lag.net/paramiko e.g. This example is exactly what I'd 
 See also 
 
 * http://jessenoller.com/2009/02/05/ssh-programming-with-paramiko-completely-different/
-* http://stackoverflow.com/questions/4038982/how-to-connect-to-a-database-through-a-paramiko-tunnel-or-similar-package
+* http://stackoverflow.com/questions/2777884/shutting-down-ssh-tunnel-in-paramiko-programatically (set up a separate thread to hold the tunnel; shut down
+  when no longer needed)
 
 Object Design
 -------------
