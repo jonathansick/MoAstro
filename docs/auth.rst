@@ -42,14 +42,23 @@ Requesting a SSH tunnel
 How to specify an SSH tunnel in `~/.moastro_auth`.
 
 Implementation Notes
---------------------
+====================
 
-Use paramiko? http://www.lag.net/paramiko
+SSH
+---
+
+Use paramiko? http://www.lag.net/paramiko e.g. This example is exactly what I'd want to do: https://github.com/robey/paramiko/blob/master/demos/forward.py
 
 See also 
 
 * http://jessenoller.com/2009/02/05/ssh-programming-with-paramiko-completely-different/
 * http://stackoverflow.com/questions/4038982/how-to-connect-to-a-database-through-a-paramiko-tunnel-or-similar-package
+
+Object Design
+-------------
+
+Use the Borg Pattern (Martelli 2005; 6.16) to ensure that all Credentials classes share the same state and obviate needing to re-read the auth file. Also, the Credentials class should be split from the Connector class. The Connector class would actually set up the SSH tunnels, and cache db objects, etc. Credentials
+would simply parse the credentials file and provide access.
 
 API
 ===
