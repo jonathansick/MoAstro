@@ -53,7 +53,7 @@ class PSC(object):
         conn = pymongo.Connection(host=host, port=port)
         cred = auth.Credentials()
         db = cred.connect_db(dbname, c=conn)
-        self.collection = db[cname]
+        self.c = db[cname]
 
     @classmethod
     def import_psc(cls, dataPath, host="localhost", port=27017, dbname="twomass",
