@@ -13,6 +13,7 @@ __all__ = ['']
 
 import os
 import glob
+import gzip
 
 import pymongo
 from pymongo import ASCENDING, DESCENDING, GEO2D
@@ -56,9 +57,20 @@ class PSC(object):
         self.c = db[cname]
 
     @classmethod
-    def import_psc(cls, dataPath, host="localhost", port=27017, dbname="twomass",
+    def import_psc(cls, f, host="localhost", port=27017, dbname="twomass",
             cname="psc", drop=False):
-        """Build a PSC database in MongoDB from the ascii data sources"""
+        """Build a PSC database in MongoDB from the ascii data streams.
+        
+        Parameters
+        ----------
+        f : a file-like object conforming to the 2MASS PSC file spec
+        host : URL of the MongoDB host
+        port : port number of MongoDB host
+        dbname : name of the MongoDB database
+        cname : name of the collection holding PSC documents
+        drop : set to `True` if any existing PSC collection should be dropped
+           useful for re-doing an import.
+        """
         c = pymongo.Connection(host=host, port=port)
         cred = auth.Credentials()
         db = cred.connect_db("twomass", c=c)
@@ -68,7 +80,7 @@ class PSC(object):
         
         colourIndices = (('j_m','h_m'),('j_m','k_m'),('h_m','k_m'))
         
-        f = open(dataPath, 'r')
+        #f = open(dataPath, 'r')
         for line in f:
             line.strip() # strip newline
             items = line.split("|")
@@ -91,7 +103,7 @@ class PSC(object):
                 if (c1 in doc) and (c2 in doc):
                     doc[colourName] = doc[c1] - doc[c2]
             collection.insert(doc)
-        f.close()
+        #f.close()
 
     @classmethod
     def index_space_color(cls, host="localhost", port=27017, dbname="twomass",
@@ -109,7 +121,7 @@ class PSC(object):
         collection.ensure_index([("coord",GEO2D),("j_m-k_m",ASCENDING),
             ("k_m",ASCENDING),("j_m",ASCENDING),("h_m",ASCENDING),
             ("h_m",ASCENDING),("h_m-k_m",ASCENDING),("j_m-h_m",ASCENDING)],
-            min=-90., max=360., name="radec_color")
+            min=-90., max=360., name="radec_color", background=True)
 
     def find(self, spec, fields=[], center=None, radius=None, box=None,
             polygon=None, header=None, wcs=None):
@@ -158,13 +170,14 @@ class PSC(object):
         1. wcs
         2. header
         3. polygon
-        3. box
-        4. center and radius
+        4. box
+        5. center and radius
 
         Examples
         --------
-        To query for all stars with $J-K_s > 0.5$ mag within 2 degrees of M31, and
-        returning only the RA,Dec position, $J$ magnitude and $K_s$ magnitude:
+        To query for all stars with :math:`J-K_s > 0.5` mag within 2 degrees
+        of M31, and returning only the RA,Dec position, :math:`J` magnitude
+        and :math:`K_s` magnitude:
 
         >>> psc = PSC()
         >>> recs = psc.find({"j_m-k_m": {"$gt": 0.5}},
@@ -204,31 +217,33 @@ class PSC(object):
 def test_import_psc(testPath, host="localhost", port=27017, dbname="twomass",
         cname="psc", drop=True):
     """Import the test_psc practice file."""
-    PSC.import_psc(testPath, drop=drop)
+    f = open(testPath, 'r')
+    PSC.import_psc(f, drop=drop)
+    f.close()
 
-def import_decompressed_psc(dataDir):
+def import_compressed_psc(dataDir, host="localhost", port=27017,
+        dbname="twomass", cname="psc",):
     """Import decompressed PSC text catalogs from dataDir.
     
     The psc collection is dropped before this operation.
     """
-    filePaths = glob.glob(os.path.join(dataDir, "psc_*"))
+    filePaths = glob.glob(os.path.join(dataDir, "psc_*.gz"))
     drop = True
     for filePath in filePaths:
-        basename = os.path.split(filePath)[-1]
-        if len(basename) != 7: continue # only look at decompressed files
         print "Loading %s" % filePath
-        PSC.import_psc(filePath, drop=drop)
-        drop = False
+        f = gzip.open(filePath, 'rb') # decompress on the file
+        # Decompress the file
+        PSC.import_psc(f, drop=drop)
+        f.close()
+        drop = False # only drop on first file import!
     PSC.index_space_color()
 
-def reset_psc():
+def reset_psc(dbname="twomass", cname="psc"):
     """Drops the 2MASS PSC collection!"""
-    db = pymongo.Connection()['twomass']
-    db.drop_collection('psc')
+    db = pymongo.Connection()[dbname]
+    db.drop_collection(cname)
+
 
 if __name__ == '__main__':
-    #test_import_psc("/Volumes/Zaphod/m31/data/2mass_psc/practice/test_psc")
-    #import_decompressed_psc("/Volumes/Zaphod/m31/data/2mass_psc")
-    #PSC.index_space_color()
     pass
 
