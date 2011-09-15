@@ -112,7 +112,7 @@ class PSC(object):
             min=-90., max=360., name="radec_color")
 
     def find(self, spec, fields=[], center=None, radius=None, box=None,
-            header=None, wcs=None):
+            polygon=None, header=None, wcs=None):
         """General purpose query method for 2MASS PSC.
 
         .. todo:: Use exceptions to make spatial query resolution chain
@@ -131,6 +131,8 @@ class PSC(object):
             an (RA, Dec.) tuple in degrees.
         radius: float (degrees)
             Radius of the spherical query, in degrees. Use with `center`.
+        polygon: list of [RA,Dec] vertices in degrees. The polygon is
+            automatically closed.
         box: list or tuple `[[RA_min,Dec_min],[RA_max,Dec_max]]`
             Queries for stars inside a rectangular range of RA and Dec. Assumes
             decimal degrees for RA and Dec.
@@ -155,6 +157,7 @@ class PSC(object):
 
         1. wcs
         2. header
+        3. polygon
         3. box
         4. center and radius
 
@@ -172,6 +175,8 @@ class PSC(object):
             spatialSpec = self._make_spatial_wcs(wcs)
         elif header is not None:
             spatialSpec = self._make_spatial_header(header)
+        elif polygon is not None:
+            spatialSpec = {"coord": {"$within": {"$polygon": polygon}}}
         elif box is not None:
             spatialSpec = {"coord": {"$within": {"$box": box}}}
         elif center is not None and radius is not None:
