@@ -189,12 +189,11 @@ class PSC(object):
 
     def _make_spatial_wcs(self, wcs):
         """Make a spatial query spec from a PyWCS WCS instance."""
-        poly = wcs.calcFootprint(wcs) # (4,2) array
-        # Reduce the polygon to a box. MongoDB 1.9+ will support polygons
-        allRA = [c[0] for c in poly]
-        allDec = [c[1] for c in poly]
-        box = [[min(allRA),min(allDec)], [max(allRA),max(allDec)]]
-        return {"coord": {"$within": {"$box": box}}}
+        poly = wcs.calcFootprint() # (4,2) numpy array
+        allRA = [int(c[0]) for c in poly]
+        allDec = [int(c[1]) for c in poly]
+        verts = zip(allRA, allDec)
+        return {"coord": {"$within": {"$polygon": verts}}}
 
     def _make_spatial_header(self, header):
         """Make a spatial query spec from a PyFITS header instance."""
