@@ -2,5 +2,5 @@
 *.o
 *.so
 *.pyc
-docs/_build/
-
+doc/_build/
+moastro.egg-info/
