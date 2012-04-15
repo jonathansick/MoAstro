@@ -1,4 +1,4 @@
 Introduction
 ------------
 
-moastro is testbed for MongoDB in astronomy data analysis systems.
+Mo'Astro is testbed for MongoDB in astronomy data analysis systems.

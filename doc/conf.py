@@ -16,7 +16,7 @@ import sys, os
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath('../'))
+sys.path.insert(0, os.path.abspath('../moastro'))
 
 # -- General configuration -----------------------------------------------------
 
@@ -44,8 +44,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'moastro'
-copyright = u'2011, Jonathan Sick and Daniel Foreman-Mackey'
+project = u"Mo'Astro"
+copyright = u'2012, Jonathan Sick and Daniel Foreman-Mackey'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -226,7 +226,7 @@ man_pages = [
 epub_title = u'moastro'
 epub_author = u'Jonathan Sick and Daniel Foreman-Mackey'
 epub_publisher = u'Jonathan Sick and Daniel Foreman-Mackey'
-epub_copyright = u'2011, Jonathan Sick and Daniel Foreman-Mackey'
+epub_copyright = u'2012, Jonathan Sick and Daniel Foreman-Mackey'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.

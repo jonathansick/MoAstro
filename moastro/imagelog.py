@@ -18,7 +18,7 @@ class ImageLog(object):
     be a query to only accept 'MegaPrime' under the `INSTRUME` key.
     """
     def __init__(self, url="localhost", port=27017):
-        # super(MongoLog, self).__init__()
+        super(ImageLog, self).__init__()
         connection = pymongo.Connection(url, port)
         self.db = connection.m31
         self.collection = self.db.images # collection for all images from a camera: WIRCam/MegaCam, etc.

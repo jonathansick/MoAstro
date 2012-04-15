@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to moastro's documentation!
-===================================
+Mo'Astro - MongoDB for Observational Astronomy
+==============================================
 
 Contents:
 
@@ -13,6 +13,8 @@ Contents:
    
    intro
    auth
+   imagelog
+   astromatic
    twomass
 
 Indices and tables

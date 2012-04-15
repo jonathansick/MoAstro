@@ -2,6 +2,8 @@
 auth --- Access secured MongoDB servers
 ***************************************
 
+.. caution:: The auth module is still being designed! Not for use.
+
 The `auth` module makes connecting to MongoDB instances easier. The same Python code can decide to connect to a MongoDB server locally, or over an SSH tunnel, depending on where the code is called from. This is handled with a ~/.moastro_auth file on each client computer.
 
 Background
