@@ -197,14 +197,15 @@ class PSC(object):
         else:
             spatialSpec = {}
         spec.update(spatialSpec)
+        print "2MASS query:", spec
         getFields = self.default_fields + fields
         return self.c.find(spec, getFields)
 
     def _make_spatial_wcs(self, wcs):
         """Make a spatial query spec from a PyWCS WCS instance."""
         poly = wcs.calcFootprint() # (4,2) numpy array
-        allRA = [int(c[0]) for c in poly]
-        allDec = [int(c[1]) for c in poly]
+        allRA = [float(c[0]) for c in poly]
+        allDec = [float(c[1]) for c in poly]
         verts = zip(allRA, allDec)
         return {"coord": {"$within": {"$polygon": verts}}}
 
