@@ -25,19 +25,19 @@ class Astromatic(object):
             print "making %s" % self.workDir
             os.makedirs(self.workDir)
     
-    def addDefaultParamToConfigs(self, defaultsCommand, name="defaults.txt"):
+    def add_default_param_to_configs(self, defaultsCommand, name="defaults.txt"):
         """Adds the default parameters filepath to the configs dictionary.
         Writes a new defaults file is one is not found/available.
         """
         # Write new defaults file if necessary
         if self.defaultsPath is None:
-            self.writeDefaultsFile(defaultsCommand)
+            self.write_defaults_file(defaultsCommand)
         elif os.path.exists(self.defaultsPath) is False:
-            self.writeDefaultsFile(defaultsCommand)
+            self.write_defaults_file(defaultsCommand)
         
-        self.addToConfigs("c", self.defaultsPath)
+        self.add_to_configs("c", self.defaultsPath)
     
-    def writeDefaultsFile(self, defaultsCommand):
+    def write_defaults_file(self, defaultsCommand):
         """Writes the Swarp internal defaults and returns its path."""
         self.defaultsPath = os.path.join(self.workDir, "defaults.txt")
         print self.defaultsPath
@@ -47,7 +47,7 @@ class Astromatic(object):
         
         return self.defaultsPath
     
-    def writeInputFileList(self, inputFITSPaths, name="inputlist"):
+    def write_input_file_list(self, inputFITSPaths, name="inputlist"):
         """Writes the path of each FITS file to a file *workDir*/inputlist.txt"""
         listString = "\n".join(inputFITSPaths) # one file path per line
         listString = "".join([listString,"\n"]) # append a newline at EOF
@@ -62,7 +62,7 @@ class Astromatic(object):
         
         return listPath
     
-    def addToConfigs(self, key, value):
+    def add_to_configs(self, key, value):
         """Add a key, with a value, to the configs dictionary. Use this to
         ensure the configs are initialized.
         """
@@ -71,7 +71,7 @@ class Astromatic(object):
         else:
             self.configs[key] = value
     
-    def setNullConfig(self, key, null="\"\""):
+    def set_null_config(self, key, null="\"\""):
         """Sets the value of the key configuration to the null value, which
         is a null string ("") by default. If null is None, the the key is
         deleted altogether.
@@ -88,7 +88,7 @@ class Astromatic(object):
                 if key in self.configs:
                     del self.configs[key]
     
-    def makeConfigCommand(self):
+    def make_config_command(self):
         """Joins the command line configuration arguments together, returning
         a string.
         """
@@ -102,10 +102,11 @@ class Astromatic(object):
         else:
             return None
     
-    def makeCommand(self):
+    def make_command(self):
         """Place holder subclass to generate the command line string for
         running the Terapix program.
         """
+        pass
     
     def run(self, virtualHost=None):
         """Runs the command process.
@@ -113,7 +114,7 @@ class Astromatic(object):
             (user@host, rootPath)
         """
         # Make the terapix program command
-        command = self.makeCommand()
+        command = self.make_command()
         
         # Append the ssh call if we run on a virtual machine
         if virtualHost is not None:
@@ -161,7 +162,6 @@ class Swarp(Astromatic):
         
         super(Swarp, self).__init__(configs=configs, workDir=workDir,
             defaultsPath=defaultsPath)
-    
     
     @classmethod
     def fromDB(cls, imageLog, imageKeys, pathKey, mosaicName, scampHeadPathKey=None,
@@ -212,11 +212,11 @@ class Swarp(Astromatic):
         f.write(headerText)
         f.close()
     
-    def makeCommand(self):
+    def make_command(self):
         """Produces the command to run Swarp."""
         # Add default parameters to the configs file. Writes a new defaults
         # if one is not found
-        self.addDefaultParamToConfigs("swarp -d")
+        self.add_default_param_to_configs("swarp -d")
         
         # Write the input FITS file list to disk
         inputFITSPaths = []
@@ -225,24 +225,24 @@ class Swarp(Astromatic):
             inputFITSPaths.append(db['path'])
             inputWeightPaths.append(db['weight'])
         
-        listPath = self.writeInputFileList(inputFITSPaths, name="inputlist"+self.uniqueExt)
+        listPath = self.write_input_file_list(inputFITSPaths, name="inputlist"+self.uniqueExt)
         
         if self.useWeights:
-            weightListPath = self.writeInputFileList(inputWeightPaths, name="weightlist"+self.uniqueExt)
-            self.addToConfigs("WEIGHT_IMAGE", "@"+weightListPath)
+            weightListPath = self.write_input_file_list(inputWeightPaths, name="weightlist"+self.uniqueExt)
+            self.add_to_configs("WEIGHT_IMAGE", "@"+weightListPath)
         else:
-            self.addToConfigs("WEIGHT_TYPE", "NONE") # ensure there's no weight
-            self.setNullConfig("WEIGHT_IMAGE", null=None)
+            self.add_to_configs("WEIGHT_TYPE", "NONE") # ensure there's no weight
+            self.set_null_config("WEIGHT_IMAGE", null=None)
         
         # Form command with the inputlist
         command = "swarp @%s" % listPath
         
         # Append the output file configuration
-        self.addToConfigs("IMAGEOUT_NAME", self.mosaicPath)
-        self.addToConfigs("WEIGHTOUT_NAME", self.mosaicWeightPath)
+        self.add_to_configs("IMAGEOUT_NAME", self.mosaicPath)
+        self.add_to_configs("WEIGHTOUT_NAME", self.mosaicWeightPath)
         
         # Append all other configurations
-        configCmd = self.makeConfigCommand()
+        configCmd = self.make_config_command()
         if configCmd is not None:
             command = " ".join((command, configCmd))
         
@@ -252,7 +252,7 @@ class Swarp(Astromatic):
         """:return: tuple of (mosaic path, mosaic weight path)."""
         return self.mosaicPath, self.mosaicWeightPath
     
-    def writeInputFileList(self, paths, name="list"):
+    def write_input_file_list(self, paths, name="list"):
         """Override the Terapix class's method so that lists of imagePaths,
         associated with a single image image key can be expanded.
         
@@ -269,7 +269,7 @@ class Swarp(Astromatic):
             else:
                 newPathList.append(path)
         
-        outputPath = super(Swarp, self).writeInputFileList(newPathList, name=name)
+        outputPath = super(Swarp, self).write_input_file_list(newPathList, name=name)
         return outputPath
     
     def copyMosaicHeaderWCS(self, headerPath):
@@ -388,14 +388,14 @@ class Scamp(Astromatic):
         paths = glob.glob(os.path.join(self.workDir, catWildcard))
         return paths
     
-    def makeCommand(self):
+    def make_command(self):
         """Writes the command to run scamp, and returns as a string."""
         
         # Make/add the default parametes file to the configs
-        self.addDefaultParamToConfigs("scamp -d")
+        self.add_default_param_to_configs("scamp -d")
         
         # Write the input FITS file list to disk
-        listPath = self.writeInputFileList(self.catalogPaths)
+        listPath = self.write_input_file_list(self.catalogPaths)
         
         # Form command with inputfile
         command = "scamp @%s" % listPath
@@ -408,20 +408,20 @@ class Scamp(Astromatic):
             # more robust? e.g. the next two lines cannot be interchanged
             # in their ordering.
             refPaths = self.getExistingRefPaths()
-            self.addToConfigs('ASTREF_CATALOG', 'FILE')
-            self.addToConfigs('ASTREFCAT_NAME', ",".join(refPaths))
+            self.add_to_configs('ASTREF_CATALOG', 'FILE')
+            self.add_to_configs('ASTREFCAT_NAME', ",".join(refPaths))
         
         # Append checkplots
         if self.checkList is not None:
             checkPathArgs = ",".join(self.checkPaths)
             checkTypeArgs = ",".join(self.checkList)
-            self.addToConfigs('CHECKPLOT_TYPE', checkTypeArgs)
-            self.addToConfigs('CHECKPLOT_NAME', checkPathArgs)
+            self.add_to_configs('CHECKPLOT_TYPE', checkTypeArgs)
+            self.add_to_configs('CHECKPLOT_NAME', checkPathArgs)
         else:
-            self.addToConfigs("CHECKPLOT_TYPE", "NONE")
+            self.add_to_configs("CHECKPLOT_TYPE", "NONE")
         
         # Append all other configurations
-        configCmd = self.makeConfigCommand()
+        configCmd = self.make_config_command()
         if configCmd is not None:
             command = " ".join((command, configCmd))
         
@@ -500,7 +500,7 @@ class SourceExtractor(Astromatic):
         self.weightPath = weightPath
         self.weightType = weightType
     
-    def makeCommand(self):
+    def make_command(self):
         """Makes the source extractor command (for CL execution).
         Returns a string.
         """
@@ -508,29 +508,29 @@ class SourceExtractor(Astromatic):
         
         # Add default parameters to the configs file. Writes a new defaults
         # if one is not found
-        self.addDefaultParamToConfigs("sex -d")
+        self.add_default_param_to_configs("sex -d")
         
         # Add CATALOG_NAME is to configs dictionary
-        self.addToConfigs('CATALOG_NAME', self.catalogPath)
+        self.add_to_configs('CATALOG_NAME', self.catalogPath)
         
         # Add all check image info to the configs dictionary
         if self.checkList is not None:
             checkPathArgs = ",".join(self.checkPaths)
             checkTypeArgs = ",".join(self.checkList)
-            self.addToConfigs('CHECKIMAGE_TYPE', checkTypeArgs)
-            self.addToConfigs('CHECKIMAGE_NAME', checkPathArgs)
+            self.add_to_configs('CHECKIMAGE_TYPE', checkTypeArgs)
+            self.add_to_configs('CHECKIMAGE_NAME', checkPathArgs)
         
         # Add weight images
         if (self.weightPath is not None) and (self.weightType is not None):
-            self.addToConfigs("WEIGHT_IMAGE", self.weightPath)
-            self.addToConfigs("WEIGHT_TYPE", self.weightType)
+            self.add_to_configs("WEIGHT_IMAGE", self.weightPath)
+            self.add_to_configs("WEIGHT_TYPE", self.weightType)
         
         # Use a PSF
         if self.psfPath is not None:
-            self.addToConfigs("PSF_NAME", self.psfPath)
+            self.add_to_configs("PSF_NAME", self.psfPath)
         
         # Append all other configurations
-        configCmd = self.makeConfigCommand()
+        configCmd = self.make_config_command()
         if configCmd is not None:
             command = " ".join((command, configCmd))
         
@@ -786,7 +786,7 @@ class PSFex(Astromatic):
             self.plotPaths = None
         self.plotType = plotType
     
-    def makeCommand(self):
+    def make_command(self):
         """Makes the source extractor command (for CL execution).
         Returns a string.
         """
@@ -809,25 +809,25 @@ class PSFex(Astromatic):
         
         # Add default parameters to the configs file. Writes a new defaults
         # if one is not found
-        self.addDefaultParamToConfigs("psfex -d")
+        self.add_default_param_to_configs("psfex -d")
         
         # Add all check image info to the configs dictionary
         if self.checkList is not None:
             checkImageArgs = ",".join(self.checkList)
             checkPathArgs = ",".join(self.checkPaths)
-            self.addToConfigs('CHECKIMAGE_TYPE', checkImageArgs)
-            self.addToConfigs('CHECKIMAGE_NAME', checkPathArgs)
+            self.add_to_configs('CHECKIMAGE_TYPE', checkImageArgs)
+            self.add_to_configs('CHECKIMAGE_NAME', checkPathArgs)
         
         # Add all check plot info to the configs dictionary
         if self.plotList is not None:
             plotArgs = ",".join(self.plotList)
             plotPathArgs = ",".join(self.plotPaths)
-            self.addToConfigs("CHECKPLOT_TYPE", plotArgs)
-            self.addToConfigs("CHECKPLOT_NAME", plotPathArgs)
-            self.addToConfigs("CHECKPLOT_DEV", self.plotType)
+            self.add_to_configs("CHECKPLOT_TYPE", plotArgs)
+            self.add_to_configs("CHECKPLOT_NAME", plotPathArgs)
+            self.add_to_configs("CHECKPLOT_DEV", self.plotType)
         
         # Append all other configurations
-        configCmd = self.makeConfigCommand()
+        configCmd = self.make_config_command()
         if configCmd is not None:
             command = " ".join((command, configCmd))
         
