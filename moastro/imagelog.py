@@ -6,6 +6,7 @@ import pyfits
 import subprocess
 import multiprocessing
 
+
 class ImageLog(object):
     """Base class for all mongodb-based image logs.
     
@@ -17,15 +18,17 @@ class ImageLog(object):
     that only the requested types of data are returned. For example, this can
     be a query to only accept 'MegaPrime' under the `INSTRUME` key.
     """
-    def __init__(self, url="localhost", port=27017):
+    def __init__(self, dbname, cname, url="localhost", port=27017):
         super(ImageLog, self).__init__()
         connection = pymongo.Connection(url, port)
-        self.db = connection.m31
-        self.collection = self.db.images # collection for all images from a camera: WIRCam/MegaCam, etc.
-        self.queryMask = {}
-        self.exts = ["0"]
+        self.db = connection[dbname]
+        self.collection = self.db[cname] # collection for all images from a camera: WIRCam/MegaCam, etc.
+        self.dbname = dbname
+        self.cname = cname
         self.url = url
         self.port = port
+        self.queryMask = {}
+        self.exts = ["0"]
     
     def __getitem__(self, key):
         """:return: a document (`dict` type) for the image named `key`"""
