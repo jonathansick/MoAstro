@@ -22,7 +22,7 @@ class ImageLog(object):
         super(ImageLog, self).__init__()
         connection = pymongo.Connection(url, port)
         self.db = connection[dbname]
-        self.collection = self.db[cname] # collection for all images from a camera: WIRCam/MegaCam, etc.
+        self.collection = self.db[cname]
         self.dbname = dbname
         self.cname = cname
         self.url = url
@@ -187,13 +187,13 @@ class ImageLog(object):
             outputPath = origPath + ".fz"
             self.set(rec['_id'], pathKey, outputPath)
     
-    def decompress_fits(self, pathKey, decompDir=None,
-        decompPathKey=None, selector={}, delete=False, overwrite=False,
-        nthreads=multiprocessing.cpu_count()):
+    def decompress_fits(self, pathKey, decompKey=None,
+            decompDir=None, selector={}, delete=False, overwrite=False,
+            nthreads=multiprocessing.cpu_count()):
         """Decompresses FITS files at `pathKey`.
         
         :param pathKey: field where FITS paths are found
-        :param decompPathKey: (optional) can be set to a field where the
+        :param decompKey: (optional) can be set to a field where the
             decompressed file can be found. Otherwise, the decompressed
             file path is written to `pathKey`.
         :param selector: (optional) search criteria dictionary
@@ -208,8 +208,8 @@ class ImageLog(object):
             if os.path.exists(decompDir) is False:
                 os.makedirs(decompDir)
         
-        if decompPathKey is None:
-            decmpPathKey = pathKey
+        if decompKey is None:
+            decompKey = pathKey
         
         records = self.getiter(selector, pathKey)
         args = []
@@ -221,15 +221,15 @@ class ImageLog(object):
             else:
                 outputPath = os.path.splitext(origPath)[0]
             
-            # verify that this file exists, and possibly skip is
+            # verify that this file exists, and possibly skip it
             exists = False
             if os.path.exists(outputPath):
                 exists = True
                 if overwrite: os.remove(outputPath)
             if exists:
-                if rec.has_key(decompPathKey):
-                    if rec[decompPathKey] == outputPath:
-                        continue # this file is already decomp and recorded
+                if decompKey in rec:
+                    if rec[decompKey] == outputPath:
+                        continue  # this file is already decomp and recorded
                 
             options = ["-O %s" % outputPath]
             if delete is True:
@@ -239,7 +239,6 @@ class ImageLog(object):
             print command
             
             args.append((rec['_id'], command, outputPath))
-            
         
         if nthreads > 1:
             pool = multiprocessing.Pool(processes=nthreads)
@@ -249,9 +248,9 @@ class ImageLog(object):
         
         for result in results:
             imageKey, outputPath = result
-            self.set(imageKey, decompPathKey, outputPath)
+            self.set(imageKey, decompKey, outputPath)
     
-    def rename_field(self, dataKeyOld, dataKeyNew, selector=None):
+    def rename_field(self, dataKeyOld, dataKeyNew, selector=None, multi=True):
         """Renames a field for all image log records found with the optional
         selector.
         
@@ -261,13 +260,13 @@ class ImageLog(object):
         """
         if selector is None:
             selector = {}
-        records = self.get(selector, dataKeyOld, candidateImages=None)
-        for imageKey, rec in records:
-            self.collection.update({"_id": imageKey}, {"$unset": dataKeyOld})
-            self.collection.update({"_id": imageKey}, {"$set":
-                {dataKeyNew: rec[dataKeyOld]}})
-    
-    def delete_field(self, dataKey, selector=None):
+        selector = self._insert_query_mask(selector)
+        ret = self.collection.update(selector,
+                {"$rename": {dataKeyOld: dataKeyNew}},
+                multi=multi, safe=True)
+        print ret
+
+    def delete_field(self, dataKey, selector=None, multi=True):
         """Deletes a field from selected image records.
         
         :param dataKey: field to be deleted.
@@ -276,7 +275,9 @@ class ImageLog(object):
         if selector is None:
             selector = {}
         selector = self._insert_query_mask(selector)
-        self.collection.update(selector, {"$unset": {dataKey: 1}})
+        print "using multi delete", multi
+        self.collection.update(selector, {"$unset": {dataKey: 1}},
+                multi=multi)
     
     def move_files(self, pathKey, newDir, selector=None, copy=False):
         """Moves a file whose path is found under `pathKey` to the `newDir`
