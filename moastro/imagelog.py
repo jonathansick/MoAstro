@@ -5,6 +5,7 @@ import pymongo
 import pyfits
 import subprocess
 import multiprocessing
+import warnings
 
 
 class ImageLog(object):
@@ -106,102 +107,6 @@ class ImageLog(object):
         cursor = self.find(selector, images=images, fields=[field])
         return cursor.distinct(field)
 
-    def search(self, selector, candidateImages=None):
-        """Get images keys that match the specified selector using MongoDB queries.
-        
-        :param selector: dictionary for data keys: data values that specifies
-            what image keys should be returned. Any mongodb search dictionary
-            will work.
-        :param candidateImages: (optional) a list of images to draw from; only images
-            within the candidateImages set will be considered
-        :return: the list of image keys for images that match the selector
-        dictionary."""
-        selector = self._insert_query_mask(selector)
-        if candidateImages is not None:
-            candidateImages = [candidateImages]
-            selector.update({"_id": {"$in": candidateImages}})
-        records = self.c.find(selector, {"_id":1})
-        imageKeys = [rec['_id'] for rec in records]
-        imageKeys.sort()
-        return imageKeys
-    
-    def getiter(self, selector, dataKeys, candidateImages=None):
-        """Returns a cursor to iterate through image records that meet the
-        given selector. Each record is a dictionary, with the image key
-        stored under `_id`.
-        
-        :param selector: dictionary for data keys: data values that specifies
-            what image keys should be returned. Any mongodb search dictionary
-            will work.
-        :param dataKeys: data key(s) for each image that should be returned for
-            the selected images. Can be string or a sequence of strings.
-        :param candidateImages: (optional) a **list** of images to draw from;
-            only images within the candidateImages set will be considered
-        """
-        selector = self._insert_query_mask(selector)
-        print "getiter using selector", selector
-        if candidateImages is not None:
-            selector.update({"_id": {"$in": candidateImages}})
-        if type(dataKeys) == str:
-            dataKeys = [dataKeys]
-        return self.c.find(selector, fields=dataKeys)
-    
-    def get(self, selector, dataKeys, candidateImages=None):
-        """Get a dictionary of `image key: {data key: data value, ...}` for images
-        that match the search `selector`. The returned dictionary contains
-        data only with the requested dataKeys (i.e., a subset of the data base
-        and records for each image are returned.)
-        
-        :param selector: dictionary for data keys: data values that specifies
-            what image keys should be returned. Any mongodb search dictionary
-            will work.
-        :param dataKeys: data for each image that should be returned for the
-            selected images.
-        :param candidateImages: (optional) a **list** of images to draw from;
-            only images within the candidateImages set will be considered
-        """
-        records = {}
-        for record in self.getiter(selector, dataKeys, candidateImages=candidateImages):
-            record = dict(record)
-            imageKey = record['_id']
-            records[imageKey] = record
-        return records
-    
-    def get_images(self, imageKeys, dataKeys):
-        """Same as `get()`, but operates on a sequence of image keys, rather
-        than a search selector.
-        """
-        return self.get({}, dataKeys, candidateImages=imageKeys)
-    
-    def find_unique(self, dataKey, selector={}, candidateImages=None):
-        """Get the set of unique values of data key for images that meet the
-        specified selector.
-        
-        .. note:: This doesn't actually use the `distinct` aggregation commmand
-            in PyMongo, since it doesn't yet support queries itself.
-        
-        :param dataKey: data field whose values will compiled into a set of
-            unique values.
-        :param selector: (optional) dictionary for data keys: data values that
-            specifies what image keys should be returned. Any mongodb search
-            dictionary will work.
-        :param candidateImages: (optional) a list of images to draw from; only
-            images within the candidateImages set will be considered
-        """
-        records = self.getiter(selector, dataKey, candidateImages=candidateImages)
-        itemList = [rec[dataKey] for rec in records]
-        filteredItemList = []
-        for item in itemList:
-            if type(item) is unicode:
-                filteredItemList.append(str(item))
-            else:
-                filteredItemList.append(item)
-        print "all items:", filteredItemList
-        valueSet = list(set(itemList))
-        valueSet.sort()
-        print "value set:", valueSet
-        return valueSet
-    
     def compress_fits(self, pathKey, selector={}, candidateImages=None,
         alg="Rice", q=4, delete=False):
         """:param alg: Compression algorithm. Any of:
@@ -382,6 +287,135 @@ class ImageLog(object):
             if str(key) in self.exts: continue
             print "%s:" % key,
             print record[key]
+
+    def search(self, selector, candidateImages=None):
+        """Get images keys that match the specified selector using MongoDB queries.
+        
+        :param selector: dictionary for data keys: data values that specifies
+            what image keys should be returned. Any mongodb search dictionary
+            will work.
+        :param candidateImages: (optional) a list of images to draw from; only images
+            within the candidateImages set will be considered
+        :return: the list of image keys for images that match the selector
+        dictionary.
+        
+        .. deprecated::
+           Use :meth:`find_images` instead.
+        """
+        warnings.warn(
+            'search() is deprecated, use find_images() instead', 
+            stacklevel=2)
+
+        selector = self._insert_query_mask(selector)
+        if candidateImages is not None:
+            candidateImages = [candidateImages]
+            selector.update({"_id": {"$in": candidateImages}})
+        records = self.c.find(selector, {"_id":1})
+        imageKeys = [rec['_id'] for rec in records]
+        imageKeys.sort()
+        return imageKeys
+    
+    def getiter(self, selector, dataKeys, candidateImages=None):
+        """Returns a cursor to iterate through image records that meet the
+        given selector. Each record is a dictionary, with the image key
+        stored under `_id`.
+        
+        :param selector: dictionary for data keys: data values that specifies
+            what image keys should be returned. Any mongodb search dictionary
+            will work.
+        :param dataKeys: data key(s) for each image that should be returned for
+            the selected images. Can be string or a sequence of strings.
+        :param candidateImages: (optional) a **list** of images to draw from;
+            only images within the candidateImages set will be considered
+
+        .. deprecated::
+           Use :meth:`find` instead.
+        """
+        warnings.warn(
+            'getiter() is deprecated, use find() instead', 
+            stacklevel=2)
+        selector = self._insert_query_mask(selector)
+        print "getiter using selector", selector
+        if candidateImages is not None:
+            selector.update({"_id": {"$in": candidateImages}})
+        if type(dataKeys) == str:
+            dataKeys = [dataKeys]
+        return self.c.find(selector, fields=dataKeys)
+    
+    def get(self, selector, dataKeys, candidateImages=None):
+        """Get a dictionary of `image key: {data key: data value, ...}` for images
+        that match the search `selector`. The returned dictionary contains
+        data only with the requested dataKeys (i.e., a subset of the data base
+        and records for each image are returned.)
+        
+        :param selector: dictionary for data keys: data values that specifies
+            what image keys should be returned. Any mongodb search dictionary
+            will work.
+        :param dataKeys: data for each image that should be returned for the
+            selected images.
+        :param candidateImages: (optional) a **list** of images to draw from;
+            only images within the candidateImages set will be considered
+
+        .. deprecated::
+           Use :meth:`find_dict` instead.
+        """
+        warnings.warn(
+            'get() is deprecated, use find_dict() instead', 
+            stacklevel=2)
+        records = {}
+        for record in self.getiter(selector, dataKeys, candidateImages=candidateImages):
+            record = dict(record)
+            imageKey = record['_id']
+            records[imageKey] = record
+        return records
+    
+    def get_images(self, imageKeys, dataKeys):
+        """Same as `get()`, but operates on a sequence of image keys, rather
+        than a search selector.
+
+        .. deprecated::
+           Use :meth:`find_dict` instead.
+        """
+        warnings.warn(
+            'get_images() is deprecated, use find_dict() instead', 
+            stacklevel=2)
+        return self.get({}, dataKeys, candidateImages=imageKeys)
+
+    def find_unique(self, dataKey, selector={}, candidateImages=None):
+        """Get the set of unique values of data key for images that meet the
+        specified selector.
+        
+        .. note:: This doesn't actually use the `distinct` aggregation commmand
+            in PyMongo, since it doesn't yet support queries itself.
+        
+        :param dataKey: data field whose values will compiled into a set of
+            unique values.
+        :param selector: (optional) dictionary for data keys: data values that
+            specifies what image keys should be returned. Any mongodb search
+            dictionary will work.
+        :param candidateImages: (optional) a list of images to draw from; only
+            images within the candidateImages set will be considered
+
+        .. deprecated::
+            Use :meth:`distinct` instead.
+        """
+        warnings.warn(
+            'find_unique() is deprecated, use distinct() instead', 
+            stacklevel=2)
+        records = self.getiter(selector, dataKey, candidateImages=candidateImages)
+        itemList = [rec[dataKey] for rec in records]
+        filteredItemList = []
+        for item in itemList:
+            if type(item) is unicode:
+                filteredItemList.append(str(item))
+            else:
+                filteredItemList.append(item)
+        print "all items:", filteredItemList
+        valueSet = list(set(itemList))
+        valueSet.sort()
+        print "value set:", valueSet
+        return valueSet
+
 
 
 def _funpack_worker(args):
