@@ -11,6 +11,17 @@ included).
 It is the user's responsibilty to subclass image log and to provide methods
 for ingesting data into image log. Contact jsick at astro dot queensu dot ca for subclass ideas.
 
+Methods for Querying the Image Log
+----------------------------------
+
+:class:`ImageLog` uses four principle methods for querying the image log: :meth:`find`, :meth:`find_dict`, :meth:`find_images` and :meth:`distinct`.
+
+.. automethod:: imagelog.ImageLog.find
+.. automethod:: imagelog.ImageLog.find_dict
+.. automethod:: imagelog.ImageLog.find_images
+.. automethod:: imagelog.ImageLog.distinct
+   
+
 ImageLog API
 ------------
 
