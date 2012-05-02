@@ -22,7 +22,7 @@ class ImageLog(object):
         super(ImageLog, self).__init__()
         connection = pymongo.Connection(url, port)
         self.db = connection[dbname]
-        self.collection = self.db[cname]
+        self.c = self.db[cname]
         self.dbname = dbname
         self.cname = cname
         self.url = url
@@ -34,7 +34,7 @@ class ImageLog(object):
         """:return: a document (`dict` type) for the image named `key`"""
         selector = {"_id": key}
         selector.update(self.queryMask)
-        return self.collection.find_one(selector)
+        return self.c.find_one(selector)
     
     def _insert_query_mask(self, selector):
         """Enforces the query mask on the selector. The user can still override
@@ -47,11 +47,14 @@ class ImageLog(object):
         return selector
     
     def set(self, imageKey, key, value, ext=None):
-        """Updates an image record by setting the `key` field to the given `value`."""
+        """Updates an image record by setting the `key` field to the given
+        `value`.
+        """
         if ext == None:
-            self.collection.update({"_id": imageKey}, {"$set": {key: value}})
+            self.c.update({"_id": imageKey}, {"$set": {key: value}})
         else:
-            self.collection.update({"_id": imageKey}, {"$set": {".".join((str(ext),key)): value}})
+            self.c.update({"_id": imageKey},
+                    {"$set": {".".join((str(ext), key)): value}})
     
     def set_frames(self, key, data):
         """Does an update of data into the `key` field for data of an arbitrary
@@ -62,7 +65,47 @@ class ImageLog(object):
         """
         for (imageKey, ext), datum in data:
             self.set(imageKey, key, datum, ext=ext)
-    
+
+    def find(self, selector, images=None, fields=None, one=False):
+        """Wrapper around MongoDB `find()`."""
+        selector = self._insert_query_mask(selector)
+        if images is not None:
+            selector.update({"_id": {"$in": images}})
+        if one:
+            return self.c.find_one(selector, fields=fields)
+        else:
+            return self.c.find(selector, fields=fields)
+
+    def find_dict(self, selector, images=None, fields=None):
+        """Analogous to find(), but formats the returned cursor
+        into a dictionary."""
+        c = self.find(selector, images=images, fields=fields, one=False)
+        records = {}
+        for doc in c:
+            doc = dict(doc)
+            imageKey = doc['_id']
+            records[imageKey] = doc
+        return records
+
+    def find_images(self, selector, images=None):
+        """Get images keys that match the specified selector using MongoDB
+        queries.
+        """
+        selector = self._insert_query_mask(selector)
+        if images is not None:
+            selector.update({"_id": {"$in": images}})
+        records = self.c.find(selector, {"_id": 1})
+        imageKeys = [rec['_id'] for rec in records]
+        imageKeys.sort()
+        return imageKeys
+
+    def distinct(self, selector, field, images=None):
+        """Return the set of distinct values a field takes over the
+        selection.
+        """
+        cursor = self.find(selector, images=images, fields=[field])
+        return cursor.distinct(field)
+
     def search(self, selector, candidateImages=None):
         """Get images keys that match the specified selector using MongoDB queries.
         
@@ -77,7 +120,7 @@ class ImageLog(object):
         if candidateImages is not None:
             candidateImages = [candidateImages]
             selector.update({"_id": {"$in": candidateImages}})
-        records = self.collection.find(selector, {"_id":1})
+        records = self.c.find(selector, {"_id":1})
         imageKeys = [rec['_id'] for rec in records]
         imageKeys.sort()
         return imageKeys
@@ -101,7 +144,7 @@ class ImageLog(object):
             selector.update({"_id": {"$in": candidateImages}})
         if type(dataKeys) == str:
             dataKeys = [dataKeys]
-        return self.collection.find(selector, fields=dataKeys)
+        return self.c.find(selector, fields=dataKeys)
     
     def get(self, selector, dataKeys, candidateImages=None):
         """Get a dictionary of `image key: {data key: data value, ...}` for images
@@ -261,7 +304,7 @@ class ImageLog(object):
         if selector is None:
             selector = {}
         selector = self._insert_query_mask(selector)
-        ret = self.collection.update(selector,
+        ret = self.c.update(selector,
                 {"$rename": {dataKeyOld: dataKeyNew}},
                 multi=multi, safe=True)
         print ret
@@ -276,7 +319,7 @@ class ImageLog(object):
             selector = {}
         selector = self._insert_query_mask(selector)
         print "using multi delete", multi
-        self.collection.update(selector, {"$unset": {dataKey: 1}},
+        self.c.update(selector, {"$unset": {dataKey: 1}},
                 multi=multi)
     
     def move_files(self, pathKey, newDir, selector=None, copy=False):
@@ -309,7 +352,7 @@ class ImageLog(object):
             else:
                 shutil.move(origPath, newPath)
                 
-            self.collection.update({"_id": imageKey}, {"$set": {pathKey: newPath}})
+            self.c.update({"_id": imageKey}, {"$set": {pathKey: newPath}})
     
     def delete_files(self, pathKey, selector=None):
         """Deletes all files stored under pathKey, and the image log fields"""
@@ -325,14 +368,13 @@ class ImageLog(object):
                 path = rec[pathKey]
             os.remove(path)
             print "Delete", imageKey, path
-            self.collection.update({"_id": imageKey}, {"$unset": pathKey})
-            
+            self.c.update({"_id": imageKey}, {"$unset": pathKey})
     
     def print_rec(self, imageKey):
         """Pretty-prints the record of `imageKey`"""
         selector = {"_id": imageKey}
         selector.update(self.queryMask)
-        record = self.collection.find_one(selector)
+        record = self.c.find_one(selector)
         keys = record.keys()
         keys.sort()
         print "== %s ==" % imageKey
@@ -340,6 +382,7 @@ class ImageLog(object):
             if str(key) in self.exts: continue
             print "%s:" % key,
             print record[key]
+
 
 def _funpack_worker(args):
     """Worker function for funpacking."""
