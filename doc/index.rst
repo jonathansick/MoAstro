@@ -13,7 +13,7 @@ Contents:
    
    intro
    auth
-   imagelog
+   imagelog/index
    astromatic
    twomass
 
