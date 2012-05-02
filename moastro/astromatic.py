@@ -2,19 +2,17 @@
 
 import os
 import glob
-import shutil
 import subprocess
 import multiprocessing
-from Queue import Queue
-from threading import Thread
-import numpy
 import pyfits
-import numpy
 
 from imagelog import ImageLog
 
+
 class Astromatic(object):
-    """Abstract base class for the Astromatic software wrappers (SExtractor, SCAMP, Swarp)."""
+    """Abstract base class for the Astromatic software wrappers
+    (SExtractor, SCAMP, Swarp).
+    """
     def __init__(self, configs=None, workDir=".", defaultsPath=None):
         self.configs = configs
         self.workDir = workDir
@@ -25,7 +23,8 @@ class Astromatic(object):
             print "making %s" % self.workDir
             os.makedirs(self.workDir)
     
-    def add_default_param_to_configs(self, defaultsCommand, name="defaults.txt"):
+    def add_default_param_to_configs(self, defaultsCommand,
+            name="defaults.txt"):
         """Adds the default parameters filepath to the configs dictionary.
         Writes a new defaults file is one is not found/available.
         """
@@ -48,9 +47,11 @@ class Astromatic(object):
         return self.defaultsPath
     
     def write_input_file_list(self, inputFITSPaths, name="inputlist"):
-        """Writes the path of each FITS file to a file *workDir*/inputlist.txt"""
-        listString = "\n".join(inputFITSPaths) # one file path per line
-        listString = "".join([listString,"\n"]) # append a newline at EOF
+        """Writes the path of each FITS file to a file
+        *workDir*/inputlist.txt
+        """
+        listString = "\n".join(inputFITSPaths)  # one file path per line
+        listString = "".join([listString, "\n"])  # append a newline at EOF
         
         listPath = os.path.join(self.workDir, ".".join((name, "txt")))
         if os.path.exists(listPath):
@@ -67,7 +68,7 @@ class Astromatic(object):
         ensure the configs are initialized.
         """
         if self.configs is None:
-            self.configs = {key:value}
+            self.configs = {key: value}
         else:
             self.configs[key] = value
     
@@ -78,7 +79,7 @@ class Astromatic(object):
         """
         if self.configs is None:
             if null is not None:
-                self.configs = {key:null}
+                self.configs = {key: null}
             else:
                 self.configs = {}
         else:
@@ -94,8 +95,6 @@ class Astromatic(object):
         """
         if self.configs is not None:
             configCmd = ""
-            # for key, value in self.configs.iteritems():
-            #     " ".join(command, "-%s %s" % (key, value))
             for key, value in self.configs.iteritems():
                 configCmd += " -%s %s" % (key, value)
             return configCmd
@@ -118,7 +117,9 @@ class Astromatic(object):
         
         # Append the ssh call if we run on a virtual machine
         if virtualHost is not None:
-            command = " ".join(["ssh", virtualHost[0], "'cd %s;%s'" % (virtualHost[1],command)])
+            command = " ".join(["ssh",
+                virtualHost[0],
+                "'cd %s;%s'" % (virtualHost[1], command)])
         
         print command
         p = subprocess.Popen(command, shell=True)
@@ -126,16 +127,18 @@ class Astromatic(object):
 
 
 class Swarp(Astromatic):
-    """This class wraps the functionality of Astromatic's Swarp mosaic software.
+    """This class wraps the functionality of Astromatic's Swarp mosaic
+    software.
     """
     def __init__(self, imagePaths, mosaicName, scampHeadPaths=None,
-            weightPaths=None, defaultsPath=None, configs=None, workDir="mosaic",
-            uniqueExt=""):
+            weightPaths=None, defaultsPath=None, configs=None,
+            workDir="mosaic", uniqueExt=""):
         self.imagePaths = imagePaths
         self.uniqueExt = uniqueExt
         mosaicBasename = os.path.splitext(mosaicName)[0]
-        self.mosaicPath = os.path.join(workDir, mosaicBasename+".fits")
-        self.mosaicWeightPath = os.path.join(workDir, mosaicBasename+"_weight.fits")
+        self.mosaicPath = os.path.join(workDir, mosaicBasename + ".fits")
+        self.mosaicWeightPath = os.path.join(workDir,
+                mosaicBasename + "_weight.fits")
         
         if weightPaths is not None:
             self.useWeights = True
@@ -143,7 +146,8 @@ class Swarp(Astromatic):
             self.useWeights = False
         
         self.swarpInputs = {}
-        self.imageNames = [os.path.basename(os.path.splitext(imagePaths[i])[0]) for i in xrange(len(self.imagePaths))]
+        self.imageNames = [os.path.basename(os.path.splitext(imagePaths[i])[0])
+                for i in xrange(len(self.imagePaths))]
         for i, key in enumerate(self.imageNames):
             print key
             if scampHeadPaths is None:
@@ -157,16 +161,16 @@ class Swarp(Astromatic):
                 weightPath = None
             
             imagePath = imagePaths[i]
-            self.swarpInputs[key] = {'head':headPath, 'path':imagePath,
-                'weight':weightPath}
+            self.swarpInputs[key] = {'head': headPath, 'path': imagePath,
+                'weight': weightPath}
         
         super(Swarp, self).__init__(configs=configs, workDir=workDir,
             defaultsPath=defaultsPath)
     
     @classmethod
-    def fromDB(cls, imageLog, imageKeys, pathKey, mosaicName, scampHeadPathKey=None,
-        weightPathKey=None, defaultsPath=None, configs=None, workDir="mosaic",
-        uniqueExt=""):
+    def from_db(cls, imageLog, imageKeys, pathKey, mosaicName,
+            scampHeadPathKey=None, weightPathKey=None, defaultsPath=None,
+            configs=None, workDir="mosaic", uniqueExt=""):
         """Construct a Swarp run from database records."""
         dataKeys = [pathKey]
         if scampHeadPathKey is not None:
@@ -186,25 +190,25 @@ class Swarp(Astromatic):
             weightPaths = None
         
         return cls(imagePaths, mosaicName, scampHeadPaths=scampHeadPaths,
-            weightPaths=weightPaths, defaultsPath=defaultsPath, configs=configs,
-            workDir=workDir, uniqueExt="")
+            weightPaths=weightPaths, defaultsPath=defaultsPath,
+            configs=configs, workDir=workDir, uniqueExt="")
     
-    def setTargetFITSWCS(self, targetFITSPath, targetFITSExt=0):
+    def set_target_fits(self, targetFITSPath, targetFITSExt=0):
         """docstring for setTargetWCS"""
         header = pyfits.getheader(targetFITSPath, targetFITSExt)
         headerText = str(header)
-        self._writeTargetHeader(headerText)
+        self._write_target_header(headerText)
     
-    def setTargetHeaderWCS(self, header):
-        """Alternative to `setTargetFITSWCS`, it creates writes the header
+    def set_target_header(self, header):
+        """Alternative to `set_target_wcs`, it creates writes the header
         to the appropriate filename and tells swarp to use it as a base WCS
         reference.
         """
         headerText = str(header)
-        self._writeTargetHeader(headerText)
+        self._write_target_header(headerText)
     
-    def _writeTargetHeader(self, headerText):
-        """docstring for _writeTargetHeader"""
+    def _write_target_header(self, headerText):
+        """docstring for _write_target_header"""
         path = os.path.splitext(self.mosaicPath)[0] + ".head"
         if os.path.exists(path):
             os.remove(path)
@@ -225,13 +229,16 @@ class Swarp(Astromatic):
             inputFITSPaths.append(db['path'])
             inputWeightPaths.append(db['weight'])
         
-        listPath = self.write_input_file_list(inputFITSPaths, name="inputlist"+self.uniqueExt)
+        listPath = self.write_input_file_list(inputFITSPaths,
+                name="inputlist" + self.uniqueExt)
         
         if self.useWeights:
-            weightListPath = self.write_input_file_list(inputWeightPaths, name="weightlist"+self.uniqueExt)
-            self.add_to_configs("WEIGHT_IMAGE", "@"+weightListPath)
+            weightListPath = self.write_input_file_list(inputWeightPaths,
+                    name="weightlist" + self.uniqueExt)
+            self.add_to_configs("WEIGHT_IMAGE", "@" + weightListPath)
         else:
-            self.add_to_configs("WEIGHT_TYPE", "NONE") # ensure there's no weight
+            # ensure there's no weight
+            self.add_to_configs("WEIGHT_TYPE", "NONE")
             self.set_null_config("WEIGHT_IMAGE", null=None)
         
         # Form command with the inputlist
@@ -248,7 +255,7 @@ class Swarp(Astromatic):
         
         return command
     
-    def getMosaicPaths(self):
+    def mosaic_paths(self):
         """:return: tuple of (mosaic path, mosaic weight path)."""
         return self.mosaicPath, self.mosaicWeightPath
     
@@ -257,10 +264,11 @@ class Swarp(Astromatic):
         associated with a single image image key can be expanded.
         
         The motivation for this is when doing a combine step on a previous
-        resampling step. Resampling will break apart multi-extension FITS files,
-        causing a single image of weight image to now be several images. When
-        the user applies Swarp on the combine step, the imagePathKey (and the weightKey)
-        must be lists to that set of FITS files.
+        resampling step. Resampling will break apart multi-extension FITS
+        files, causing a single image of weight image to now be several
+        images. When the user applies Swarp on the combine step, the
+        imagePathKey (and the weightKey) must be lists to that set of FITS
+        files.
         """
         newPathList = []
         for path in paths:
@@ -269,10 +277,11 @@ class Swarp(Astromatic):
             else:
                 newPathList.append(path)
         
-        outputPath = super(Swarp, self).write_input_file_list(newPathList, name=name)
+        outputPath = super(Swarp, self).write_input_file_list(newPathList,
+                name=name)
         return outputPath
     
-    def copyMosaicHeaderWCS(self, headerPath):
+    def copy_mosaic_wcs(self, headerPath):
         """Copies the WCS keys in the header of the mosaic image (as produced)
         by swarp.run() to an ascii header file at *headerPath*.
         
@@ -280,16 +289,16 @@ class Swarp(Astromatic):
         Swarp with another data set (like a different colour) so that the
         pixel-sky projection is the same in both.
         
-        TODO DEPRECATED Refactored as a function in Terapix.py. Keep this method
-        around as a wrapper to Terapix.copyHeaderWCS().
+        TODO DEPRECATED Refactored as a function in Terapix.py. Keep this
+        method around as a wrapper to Terapix.copyHeaderWCS().
         """
         mosaicFITS = pyfits.open(self.mosaicPath)
         mosaicHeader = mosaicFITS[0].header
         mosaicCardList = mosaicHeader.ascardlist()
         
-        wcsKeys = ('EQUINOX', 'RADECSYS', 'CTYPE1', 'CUNIT1', 'CRVAL1', 'CRPIX1',
-            'CD1_1', 'CD1_2', 'CTYPE2', 'CUNIT2', 'CRVAL2', 'CRPIX2',
-            'CD2_1', 'CD2_2')
+        wcsKeys = ('EQUINOX', 'RADECSYS', 'CTYPE1', 'CUNIT1', 'CRVAL1',
+                'CRPIX1', 'CD1_1', 'CD1_2', 'CTYPE2', 'CUNIT2', 'CRVAL2',
+                'CRPIX2', 'CD2_1', 'CD2_2')
         
         # List of WCS header cards, as strings
         wcsCardList = []
@@ -301,12 +310,12 @@ class Swarp(Astromatic):
                 # is located at char#80
                 cardStr = str(mosaicCardList[key])[:-1]
             except:
-                continue # evidently that key does not exist the mosaic FITS
+                continue  # evidently that key does not exist the mosaic FITS
             wcsCardList.append(cardStr)
         
         # Write the WCS cards, one per line, to headerPath
         headerText = "\n".join(wcsCardList)
-        headerText = "".join((headerText, "\n")) # append last newline
+        headerText = "".join((headerText, "\n"))  # append last newline
         if os.path.exists(headerPath):
             os.remove(headerPath)
         f = open(headerPath, 'w')
@@ -326,7 +335,7 @@ class Scamp(Astromatic):
     """
     
     # Listing of all check plots available to scamp 1.4.2
-    ALLPLOTS = ["SKY_ALL","FGROUPS","DISTORTION","ASTR_INTERROR1D",
+    ALLPLOTS = ["SKY_ALL", "FGROUPS", "DISTORTION", "ASTR_INTERROR1D",
         "ASTR_INTERROR2D", "ASTR_REFERROR1D", "ASTR_REFERROR2D",
         "ASTR_PIXERROR1D", "ASTR_SUBPIXERROR1D", "ASTR_CHI2",
         "ASTR_REFSYSMAP", "ASTR_REFPROPER", "ASTR_COLSHIFT1D",
@@ -355,12 +364,12 @@ class Scamp(Astromatic):
         
         # Initialize the check plots
         if checks is not None:
-            self.setCheckPlots(checks)
+            self.set_check_plots(checks)
         else:
             self.checkList = None
     
     @classmethod
-    def fromDB(cls, imageLog, imageKeys, seCatKey, defaultsPath=None,
+    def from_db(cls, imageLog, imageKeys, seCatKey, defaultsPath=None,
         configs=None, checks=None, workDir='scamp', useFileRefs=False):
         """Construct a SCAMP run from an image log database."""
         records = imageLog.get_images(imageKeys, [seCatKey])
@@ -370,7 +379,7 @@ class Scamp(Astromatic):
             defaultsPath=defaultsPath, configs=configs, checks=checks,
             workDir=workDir, useFileRefs=False)
     
-    def setCheckPlots(self, checks):
+    def set_check_plots(self, checks):
         """Initializes the scamp checkplot types, and associated file names.
         
         By default, the file names are lower-cased versions of the check type,
@@ -379,9 +388,10 @@ class Scamp(Astromatic):
         self.checkList = checks
         self.checkPaths = []
         for checkType in self.checkList:
-            self.checkPaths.append(os.path.join(self.workDir,checkType.lower()))
+            self.checkPaths.append(os.path.join(self.workDir,
+                checkType.lower()))
     
-    def getExistingRefPaths(self):
+    def refcatalog_paths(self):
         """Returns the paths to existing reference catalogs."""
         catSource = self.configs["ASTREF_CATALOG"]
         catWildcard = "*".join((catSource, ".cat"))
@@ -402,12 +412,12 @@ class Scamp(Astromatic):
         
         # If we're using pre-downloaded reference files, set this now
         if self.useFileRefs is True:
-            # FIXME this is weird, getExistingRefPaths() relied on ASTREF_CATALOG
+            # FIXME this is weird, refcatalog_paths() relied on ASTREF_CATALOG
             # being the name of the catalog source, and that useFileRefs is
             # the only thing that tells us to use a FILE source. Do something
             # more robust? e.g. the next two lines cannot be interchanged
             # in their ordering.
-            refPaths = self.getExistingRefPaths()
+            refPaths = self.refcatalog_paths()
             self.add_to_configs('ASTREF_CATALOG', 'FILE')
             self.add_to_configs('ASTREFCAT_NAME', ",".join(refPaths))
         
@@ -427,16 +437,17 @@ class Scamp(Astromatic):
         
         return command
     
-    def addScampHeadPathsToImageLog(self, scampKey="scamp"):
+    def save_scamp_headers(self, scampKey="scamp"):
         """Insert the SExtractor objects from the `self.headDB` dictionary to
         the given `imageLog` under the key `scampKey`. Must have instantiated
-        Scamp with Scamp.fromDB() so that the image keys are known.
+        Scamp with Scamp.from_db() so that the image keys are known.
         """
         print "//////"
-        print "////// addScampHeadPathsToImageLog /////////"
+        print "////// save_scamp_headers /////////"
         print "//////"
         for imageKey, headPath in self.headDB.iteritems():
             self.imageLog.set(imageKey, scampKey, headPath)
+
 
 class SourceExtractor(Astromatic):
     """Represents a run of Terapix's Source Extractor."""
@@ -444,7 +455,7 @@ class SourceExtractor(Astromatic):
     def __init__(self, fitsPath, catalogName, weightPath=None,
         weightType=None, psfPath=None, configs=None, workDir="sex",
         defaultsPath="se/config.sex"):
-        self.inputPath = fitsPath # path to FITS image to be source-extracted
+        self.inputPath = fitsPath  # path to FITS image to be source-extracted
         self.catalogName = catalogName
         self.psfPath = psfPath
         self.weightPath = weightPath
@@ -457,29 +468,30 @@ class SourceExtractor(Astromatic):
         
         # Set-up the check images
         # if checks is not None:
-        #     self.setCheckImages(checks, self.workDir)
+        #     self.set_check_images(checks, self.workDir)
         # else:
         #     self.checkList = None
         
-        self.catalogPath = os.path.join(workDir, catalogName+".fits")
+        self.catalogPath = os.path.join(workDir, catalogName + ".fits")
     
-    def setCheckImages(self, checkList, checkDir):
+    def set_check_images(self, checkList, checkDir):
         """Sets which check images should be made, and where they should be
         saved. By default, all checkimages retain the base file name, plus an
         appropriate extension.
         """
         self.checkList = checkList
         self.checkPaths = []
-        checkExt = {"SEGMENTATION":"seg", "OBJECTS":"obj", "MINIBACK_RMS":"minibrms",
-            "BACKGROUND": "bkg", "MINIBACKGROUND": "minibkg",
-            "BACKGROUND_RMS": "backrms", "-OBJECTS":"objsub"}
+        checkExt = {"SEGMENTATION": "seg", "OBJECTS": "obj",
+                "MINIBACK_RMS": "minibrms",
+                "BACKGROUND": "bkg", "MINIBACKGROUND": "minibkg",
+                "BACKGROUND_RMS": "backrms", "-OBJECTS": "objsub"}
         baseName = os.path.splitext(os.path.basename(self.inputPath))[0]
         for checkType in self.checkList:
             self.checkPaths.append(os.path.join(self.workDir,
-                "%s_%s.fits" % (baseName,checkExt[checkType])))
+                "%s_%s.fits" % (baseName, checkExt[checkType])))
         # TODO add assert in case the user suppies a bad check image type
     
-    def pathToCheckImage(self, checkType):
+    def check_path(self, checkType):
         """Returns the path to a check image of type checkType. Returns None
         if no such check image exists.
         """
@@ -492,7 +504,7 @@ class SourceExtractor(Astromatic):
         else:
             return None
     
-    def setWeightFile(self, weightPath, weightType):
+    def set_weight_file(self, weightPath, weightType):
         """Sets a weight image as a FITS at *weightPath* of SE weight image
         type *weightType*.
         """
@@ -536,9 +548,10 @@ class SourceExtractor(Astromatic):
         
         return command
     
-    def getCatalogPath(self):
+    def catalog_path(self):
         """Returns the path to the SE catalog."""
         return self.catalogPath
+
 
 class BatchSourceExtractor(object):
     """Run Source Extractor in parallel on multiple processors. ImageLog is
@@ -561,7 +574,7 @@ class BatchSourceExtractor(object):
         self.checkDir = None
         self.checkKeyDict = None
     
-    def setCheckImages(self, checkKeyDict, checkDir):
+    def set_check_images(self, checkKeyDict, checkDir):
         """
         :param checkKeyDict: dictionary of `check type: image log field key`
             to store path to check image.
@@ -604,13 +617,14 @@ class BatchSourceExtractor(object):
             self.imageLog.set(imageKey, self.catalogKey, se.getCatalogPath())
             if self.checkKeyDict is not None:
                 for checkType, checkKey in self.checkKeyDict.iteritems():
-                    self.imageLog.set(imageKey, checkKey, se.pathToCheckImage(checkKey))
-        
+                    self.imageLog.set(imageKey, checkKey,
+                            se.check_path(checkKey))
+
 
 def _workSE(args):
     """Worker function for batch source extraction."""
-    imageKey, imagePath, weightPath, weightType, psfPath, configs, checkImages, catPostfix, \
-        workDir, defaultsPath = args
+    imageKey, imagePath, weightPath, weightType, psfPath, configs, \
+        checkImages, catPostfix, workDir, defaultsPath = args
     
     catalogName = "_".join((str(imageKey), catPostfix))
     se = SourceExtractor(imagePath, catalogName, weightPath=weightPath,
@@ -618,9 +632,10 @@ def _workSE(args):
         workDir=workDir,
         defaultsPath=defaultsPath)
     if checkImages is not None:
-        se.setCheckImages(checkImages, workDir)
+        se.set_check_images(checkImages, workDir)
     se.run()
     return imageKey, se
+
 
 class BatchPSFex(object):
     def __init__(self, imageLog, groupedImageKeys, catalogPathKey, psfKey,
@@ -629,12 +644,14 @@ class BatchPSFex(object):
         """Runs multiple PSFex instances over independent groups of image keys.
         
         :param imageLog: a ImageLog-compatible database instance.
-        :param groupedImageKeys: a dictionary of groupName: sequence of image keys
+        :param groupedImageKeys: a dictionary of groupName: sequence of image
+            keys
         :param catalogPathKey: record field where the SE (Source Extractor)
             catalogs are found for each image
-        :param configs: (optional) dictionary of PSFex settings. Keys and values
-            are standard PSFex command line arguments.
-        :param defaultsPath: path to where a PSFex configuration file can be found
+        :param configs: (optional) dictionary of PSFex settings. Keys and
+            values are standard PSFex command line arguments.
+        :param defaultsPath: path to where a PSFex configuration file can be
+            found
         :param workDir: directory where PSFex outputs are saved.
         """
         self.imageLog = imageLog
@@ -654,8 +671,8 @@ class BatchPSFex(object):
         
         args = []
         for groupName, imageKeys in self.groupedImageKeys.iteritems():
-            args.append((groupName, imageKeys, self.catalogPathKey, self.psfKey,
-                self.configs, self.checkImages, self.checkPlots,
+            args.append((groupName, imageKeys, self.catalogPathKey,
+                self.psfKey, self.configs, self.checkImages, self.checkPlots,
                 self.defaultsPath, self.workDir, imageLogHost, imageLogPort))
         
         if debug:
@@ -663,6 +680,7 @@ class BatchPSFex(object):
         else:
             pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
             pool.map(_run_batch_psfex, args)
+
 
 def _run_batch_psfex(args):
     """Worker function for executing PSFex from BatchPSFex.
@@ -673,14 +691,17 @@ def _run_batch_psfex(args):
     imageLog = ImageLog(url=url, port=port)
     
     print "Running imageKeys:", imageKeys
-    psfex = PSFex.fromDB(imageLog, imageKeys, catalogPathKey, configs=configs,
+    psfex = PSFex.from_db(imageLog, imageKeys, catalogPathKey, configs=configs,
         defaultsPath=None, workDir=workDir)
     if checkImages is not None:
-        psfex.setCheckImages(checkImages, "psfex", os.path.join(workDir, "checks"))
+        psfex.set_check_images(checkImages, "psfex",
+                os.path.join(workDir, "checks"))
     if checkPlots is not None:
-        psfex.setCheckPlots(checkPlots, "psfex", os.path.join(workDir, "plots"), plotType="PSC")
+        psfex.set_check_plots(checkPlots, "psfex",
+                os.path.join(workDir, "plots"), plotType="PSC")
     psfex.run()
-    psfex.addPSFPathsToImageLog(psfKey)
+    psfex.save_psf_paths(psfKey)
+
 
 class PSFex(Astromatic):
     """Wrapper on the PSFex PSF-modelling software."""
@@ -695,7 +716,8 @@ class PSFex(Astromatic):
         self.imageKeys = imageKeys
         self.configs = configs
         self.workDir = workDir
-        self.groupName = groupName # allows the input list to be named different in batch mode
+        # allows the input list to be named different in batch mode
+        self.groupName = groupName
         
         self.checkDir = None
         self.checkList = None
@@ -706,7 +728,7 @@ class PSFex(Astromatic):
         self.plotPaths = None
     
     @classmethod
-    def fromDB(cls, imageLog, imageKeys, catalogPathKey,
+    def from_db(cls, imageLog, imageKeys, catalogPathKey,
         configs=None, defaultsPath=None, workDir='psfex'):
         """Creates a PSFex run from an image log database.
         
@@ -715,9 +737,10 @@ class PSFex(Astromatic):
             gathered.
         :param catalogPathKey: record field where the SE (Source Extractor)
             catalogs are found for each image
-        :param configs: (optional) dictionary of PSFex settings. Keys and values
-            are standard PSFex command line arguments.
-        :param defaultsPath: path to where a PSFex configuration file can be found
+        :param configs: (optional) dictionary of PSFex settings. Keys and
+            values are standard PSFex command line arguments.
+        :param defaultsPath: path to where a PSFex configuration file can be
+            found
         :param workDir: directory where PSFex outputs are saved.
         """
         records = imageLog.get_images(imageKeys, catalogPathKey)
@@ -728,7 +751,7 @@ class PSFex(Astromatic):
         return cls(catalogPaths, imageLog=imageLog, imageKeys=imageKeys,
             defaultsPath=defaultsPath, configs=configs, workDir=workDir)
     
-    def setCheckImages(self, checkList, prefix, checkDir):
+    def set_check_images(self, checkList, prefix, checkDir):
         """Sets which check images should be made, and where they should be
         saved. By default, all checkimages retain the base file name, plus
         and appropriate extension.
@@ -756,12 +779,13 @@ class PSFex(Astromatic):
             "RESIDUALS": "resi", "SNAPSHOTS": "snap", "MOFFAT": "moffat",
             "-MOFFAT": "-moffat", "-SYMMETRICAL": "-symm", "BASIS": "basis"}
         if self.checkList is not None:
-            self.checkPaths = [os.path.join(self.checkDir, "%s_%s.fits"%(prefix, checkPath[c])) for c in self.checkList]
+            self.checkPaths = [os.path.join(self.checkDir,
+                "%s_%s.fits" % (prefix, checkPath[c])) for c in self.checkList]
         else:
             self.checkPaths = None
         print self.checkPaths
     
-    def setCheckPlots(self, plotList, prefix, plotDir, plotType="PDF"):
+    def set_check_plots(self, plotList, prefix, plotDir, plotType="PDF"):
         """Sets which check figures (plplot) should be made, and where they
         should be saved.
         
@@ -769,7 +793,8 @@ class PSFex(Astromatic):
         * FWHM - map of PSF FWHM over field
         * ELLIPTICITY - map of PSF ellipticity over field
         * COUNTS - map of spatial density of point sources
-        * COUNT_FRACTION - map of fraction of points accepted for PSF evaluation
+        * COUNT_FRACTION - map of fraction of points accepted for
+            PSF evaluation
         * CHI2 - map of average chi^2/d.o.f over field
         * MOFFAT_RESIDUALS - map of moffat residuals
         * ASYMMETRY - map of asymmetry indices
@@ -778,10 +803,11 @@ class PSFex(Astromatic):
         if os.path.exists(plotDir) is False: os.makedirs(plotDir)
         self.plotList = plotList
         plotPath = {"FWHM": "fwhm", "ELLIPTICITY": "ellip", "COUNTS": 'counts',
-            "COUNT_FRACTION": 'cfrac', "CHI2": "chi", "MOFFAT_RESIDUALS": 'resid',
-            "ASYMMETRY": 'asym'}
+            "COUNT_FRACTION": 'cfrac', "CHI2": "chi",
+            "MOFFAT_RESIDUALS": 'resid', "ASYMMETRY": 'asym'}
         if self.plotList is not None:
-            self.plotPaths = [os.path.join(self.plotDir, "%s_%s.fits"%(prefix, plotPath[c])) for c in self.plotList]
+            self.plotPaths = [os.path.join(self.plotDir,
+                "%s_%s.fits" % (prefix, plotPath[c])) for c in self.plotList]
         else:
             self.plotPaths = None
         self.plotType = plotType
@@ -799,7 +825,7 @@ class PSFex(Astromatic):
             inputListPath = os.path.join(self.workDir, inputName)
             if os.path.exists(inputListPath): os.remove(inputListPath)
             f = open(inputListPath, 'w')
-            f.write("\n".join(self.catalogPaths)+"\n")
+            f.write("\n".join(self.catalogPaths) + "\n")
             f.close()
             command = "psfex @%s" % inputListPath
         elif len(self.catalogPaths) == 1:
@@ -833,7 +859,7 @@ class PSFex(Astromatic):
         
         return command
     
-    def pathToCheckImage(self, checkType):
+    def check_path(self, checkType):
         """Returns the path to the specified type of check iamage."""
         i = self.checkList.index(checkType)
         if i >= 0:
@@ -842,17 +868,20 @@ class PSFex(Astromatic):
         else:
             return None
     
-    def pathToPSFs(self):
-        """Get the paths to each image, in the same order as the input catalog paths."""
-        psfPaths = [os.path.join(self.workDir, os.path.splitext(os.path.basename(path))[0]+".psf") for path in self.catalogPaths]
+    def psf_paths(self):
+        """Get the paths to each image, in the same order as the input
+        catalog paths.
+        """
+        psfPaths = [os.path.join(self.workDir,
+            os.path.splitext(os.path.basename(path))[0] + ".psf")
+            for path in self.catalogPaths]
         return psfPaths
     
-    def addPSFPathsToImageLog(self, psfKey):
-        """Files the psf file paths into the image log under `psfKey` for all images."""
-        print "hi"
-        print self.catalogPaths
+    def save_psf_paths(self, psfKey):
+        """Files the psf file paths into the image log under `psfKey` for
+        all images.
+        """
         for imageKey, catPath in zip(self.imageKeys, self.catalogPaths):
-            psfPath = os.path.join(self.workDir, os.path.splitext(os.path.basename(catPath))[0]+".psf")
-            print imageKey, psfPath
+            psfPath = os.path.join(self.workDir,
+                    os.path.splitext(os.path.basename(catPath))[0] + ".psf")
             self.imageLog.set(imageKey, psfKey, psfPath)
-    
