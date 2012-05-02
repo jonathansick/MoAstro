@@ -4,3 +4,4 @@
 *.pyc
 doc/_build/
 moastro.egg-info/
+build/
