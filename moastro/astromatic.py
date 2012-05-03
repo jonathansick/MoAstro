@@ -8,6 +8,7 @@ import multiprocessing
 import pyfits
 
 from imagelog import ImageLog
+from dbtools import reach
 
 
 class Astromatic(object):
@@ -179,14 +180,15 @@ class Swarp(Astromatic):
         if weightPathKey is not None:
             dataKeys.append(weightPathKey)
         
-        records = imageLog.get_images(imageKeys, dataKeys)
-        imagePaths = [records[k][pathKey] for k in imageKeys]
+        recs = imageLog.find_dict(imageKeys, fields=dataKeys)
+        imagePaths = [reach(recs[k], pathKey) for k in imageKeys]
         if scampHeadPathKey is not None:
-            scampHeadPaths = [imageLog[k][scampHeadPathKey] for k in imageKeys]
+            scampHeadPaths = [reach(recs[k], scampHeadPathKey)
+                    for k in imageKeys]
         else:
             scampHeadPaths = None
         if weightPathKey is not None:
-            weightPaths = [imageLog[k][weightPathKey] for k in imageKeys]
+            weightPaths = [reach(recs[k][weightPathKey]) for k in imageKeys]
         else:
             weightPaths = None
         
