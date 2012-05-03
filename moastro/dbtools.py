@@ -32,11 +32,17 @@ def reach(doc, key):
 
 
 class ReachableDoc(dict):
+    """
+    ReachableDoc manipulates overrides `dict` __getitem__ behaviour to
+    allow embedded documets to be accessed with dot notation in the keys.
+
+    * https://jira.mongodb.org/browse/PYTHON-175
+    * http://groups.google.com/group/mongodb-user/browse_thread/thread/e9f8c19a0d9e4a33
+    """
     def __init__(self, *args, **kwargs):
         super(ReachableDoc, self).__init__(*args, **kwargs)
     
     def __getitem__(self, key):
-        """docstring for __getitem__"""
         if "." in key:
             parts = key.split(".")
             return reach(super(ReachableDoc, self).__getitem__(parts[0]),
@@ -48,7 +54,12 @@ class ReachableDoc(dict):
         return "I'm an instance of MyDoc!"
 
 
-class DocManipulator(SONManipulator):
+class DotReachable(SONManipulator):
+    """Formats outgoing documents as ReachableDoc, so that embedded
+    documents can be addressed with dot notation directory.
+    
+    e.g., doc['firstkey.secondkey'] = value
+    """
     def transform_outgoing(self, son, collection):
         return ReachableDoc(son)
 
@@ -56,7 +67,7 @@ class DocManipulator(SONManipulator):
 def test_reachdoc():
     c = pymongo.Connection()
     db = c.foo
-    db.add_son_manipulator(DocManipulator())
+    db.add_son_manipulator(DotReachable())
     db.bar.remove()
     db.bar.insert({'foo': {'bar': 'baz'}})
     doc = db.bar.find_one()
