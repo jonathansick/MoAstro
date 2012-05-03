@@ -5,6 +5,7 @@ Utility classes/functions for using MongoDB
 
 2012-05-03 - Created by Jonathan Sick
 """
+from pymongo.son_manipulator import SONManipulator
 
 
 def reach(doc, key):
@@ -29,7 +30,53 @@ def reach(doc, key):
     else:
         return doc[parts[0]]
 
-if __name__ == '__main__':
+
+class ReachableDoc(dict):
+    def __init__(self, *args, **kwargs):
+        super(ReachableDoc, self).__init__(*args, **kwargs)
+    
+    def __getitem__(self, key):
+        """docstring for __getitem__"""
+        if "." in key:
+            parts = key.split(".")
+            return reach(super(ReachableDoc, self).__getitem__(parts[0]),
+                    ".".join(parts[1:]))
+        else:
+            return super(ReachableDoc, self).__getitem__(key)
+
+    def what_am_i(self):
+        return "I'm an instance of MyDoc!"
+
+
+class DocManipulator(SONManipulator):
+    def transform_outgoing(self, son, collection):
+        return ReachableDoc(son)
+
+
+def test_reachdoc():
+    c = pymongo.Connection()
+    db = c.foo
+    db.add_son_manipulator(DocManipulator())
+    db.bar.remove()
+    db.bar.insert({'foo': {'bar': 'baz'}})
+    doc = db.bar.find_one()
+    assert isinstance(doc, ReachableDoc)
+    print type(doc)
+    pprint.pprint(doc)
+    print doc.what_am_i()
+    print type(doc['foo'])
+    print doc['foo.bar']
+    print doc['foo']
+
+
+def test_reach():
+    """docstring for test_reach"""
     embeddedDict = {"first": {"second": "gold!"}}
     print reach(embeddedDict, "first.second")
     print reach(embeddedDict, "first")
+
+if __name__ == '__main__':
+    import pprint
+    import pymongo
+    test_reachdoc()
+    test_reach()
