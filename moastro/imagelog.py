@@ -7,6 +7,8 @@ import subprocess
 import multiprocessing
 import warnings
 
+from dbtools import DotReachable
+
 
 class ImageLog(object):
     """Base class for all mongodb-based image logs.
@@ -23,6 +25,7 @@ class ImageLog(object):
         super(ImageLog, self).__init__()
         connection = pymongo.Connection(url, port)
         self.db = connection[dbname]
+        self.db.add_son_manipulator(DotReachable())
         self.c = self.db[cname]
         self.dbname = dbname
         self.cname = cname
@@ -303,14 +306,14 @@ class ImageLog(object):
            Use :meth:`find_images` instead.
         """
         warnings.warn(
-            'search() is deprecated, use find_images() instead', 
+            'search() is deprecated, use find_images() instead',
             stacklevel=2)
 
         selector = self._insert_query_mask(selector)
         if candidateImages is not None:
             candidateImages = [candidateImages]
             selector.update({"_id": {"$in": candidateImages}})
-        records = self.c.find(selector, {"_id":1})
+        records = self.c.find(selector, {"_id": 1})
         imageKeys = [rec['_id'] for rec in records]
         imageKeys.sort()
         return imageKeys
@@ -332,7 +335,7 @@ class ImageLog(object):
            Use :meth:`find` instead.
         """
         warnings.warn(
-            'getiter() is deprecated, use find() instead', 
+            'getiter() is deprecated, use find() instead',
             stacklevel=2)
         selector = self._insert_query_mask(selector)
         print "getiter using selector", selector
@@ -400,7 +403,7 @@ class ImageLog(object):
             Use :meth:`distinct` instead.
         """
         warnings.warn(
-            'find_unique() is deprecated, use distinct() instead', 
+            'find_unique() is deprecated, use distinct() instead',
             stacklevel=2)
         records = self.getiter(selector, dataKey, candidateImages=candidateImages)
         itemList = [rec[dataKey] for rec in records]
@@ -415,7 +418,6 @@ class ImageLog(object):
         valueSet.sort()
         print "value set:", valueSet
         return valueSet
-
 
 
 def _funpack_worker(args):

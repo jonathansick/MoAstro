@@ -188,7 +188,7 @@ class Swarp(Astromatic):
         else:
             scampHeadPaths = None
         if weightPathKey is not None:
-            weightPaths = [reach(recs[k][weightPathKey]) for k in imageKeys]
+            weightPaths = [reach(recs[k], weightPathKey) for k in imageKeys]
         else:
             weightPaths = None
         
