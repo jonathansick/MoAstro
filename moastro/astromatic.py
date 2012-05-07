@@ -1,6 +1,7 @@
 """Wrappers around the astromatic.net software library."""
 
 import os
+import shutil
 import glob
 import subprocess
 import multiprocessing
@@ -240,6 +241,17 @@ class Swarp(Astromatic):
             # ensure there's no weight
             self.add_to_configs("WEIGHT_TYPE", "NONE")
             self.set_null_config("WEIGHT_IMAGE", null=None)
+
+        # Setup external headers
+        for key, db in self.swarpInputs.iteritems():
+            imagePath = db['path']
+            origHeaderPath = db['head']
+            newHeaderPath = os.path.splitext(imagePath)[0] + ".head"
+            if (origHeaderPath is not None) \
+                    and (origHeaderPath != newHeaderPath):
+                if os.path.exists(newHeaderPath):
+                    os.remove(newHeaderPath)  # clean out old copies at dest.
+                shutil.copy(origHeaderPath, newHeaderPath)
         
         # Form command with the inputlist
         command = "swarp @%s" % listPath
