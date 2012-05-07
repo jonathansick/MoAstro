@@ -180,7 +180,7 @@ class Swarp(Astromatic):
         if weightPathKey is not None:
             dataKeys.append(weightPathKey)
         
-        recs = imageLog.find_dict(imageKeys, fields=dataKeys)
+        recs = imageLog.find_dict({}, images=imageKeys, fields=dataKeys)
         imagePaths = [reach(recs[k], pathKey) for k in imageKeys]
         if scampHeadPathKey is not None:
             scampHeadPaths = [reach(recs[k], scampHeadPathKey)
