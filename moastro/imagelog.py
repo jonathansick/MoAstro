@@ -100,7 +100,7 @@ class ImageLog(object):
         imageKeys.sort()
         return imageKeys
 
-    def distinct(self, selector, field, images=None):
+    def distinct(self, field, selector, images=None):
         """Return the set of distinct values a field takes over the
         selection.
         """
