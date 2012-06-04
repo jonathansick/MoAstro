@@ -196,11 +196,17 @@ class Swarp(Astromatic):
             weightPaths=weightPaths, defaultsPath=defaultsPath,
             configs=configs, workDir=workDir, uniqueExt="")
     
-    def set_target_fits(self, targetFITSPath, targetFITSExt=0):
-        """docstring for setTargetWCS"""
-        header = pyfits.getheader(targetFITSPath, targetFITSExt)
-        headerText = str(header)
-        self._write_target_header(headerText)
+    def set_target_fits(self, targetFITSPath):
+        """Use the header of `targetFITSPath` to define output pixel space.
+        
+        This method links `targetFITSPath` to *mosaicName*".head", which
+        Swarp automatically recognizes.
+        """
+        targetFITSPath = os.path.abspath(targetFITSPath)
+        destPath = os.path.splitext(self.mosaicPath)[0] + ".head"
+        if os.path.lexists(destPath): os.remove(destPath)
+        cmd = "ln -s %s %s" % (targetFITSPath, destPath)
+        subprocess.call(cmd, shell=True)
     
     def set_target_header(self, header):
         """Alternative to `set_target_wcs`, it creates writes the header
