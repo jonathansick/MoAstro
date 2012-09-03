@@ -269,11 +269,7 @@ class ImageLog(object):
         selector = self._insert_query_mask(selector)
         for rec in self.getiter(selector, pathKey):
             imageKey = rec['_id']
-            if "." in pathKey:
-                ext, k = pathKey.split(".")
-                path = rec[ext][k]
-            else:
-                path = rec[pathKey]
+            path = rec[pathKey]
             os.remove(path)
             print "Delete", imageKey, path
             self.c.update({"_id": imageKey}, {"$unset": pathKey})
