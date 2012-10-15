@@ -111,7 +111,7 @@ class ImageLog(object):
         return cursor.distinct(field)
 
     def compress_fits(self, pathKey, selector={}, candidateImages=None,
-        alg="Rice", q=4, delete=False):
+            alg="Rice", q=4, delete=False):
         """:param alg: Compression algorithm. Any of:
         * Rice
         * gzip
@@ -121,11 +121,14 @@ class ImageLog(object):
         """
         algs = {"Rice": "-r", "gzip": "-g"}
         
-        records = self.getiter(selector, pathKey, candidateImages=candidateImages)
+        records = self.getiter(selector, pathKey,
+                candidateImages=candidateImages)
         
         optList = []
-        optList.append(algs[alg])
-        optList.append(str(q))
+        if alg == "Rice":
+            optList.append("%s -q %i" % (algs[alg], q))
+        elif alg == "gzip":
+            optList.append(algs[alg])
         if delete == True:
             optList.append("-D")
         options = " ".join(optList)
