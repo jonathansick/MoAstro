@@ -363,8 +363,8 @@ class Scamp(Astromatic):
         "SHEAR_VS_AIRMASS"]
     
     def __init__(self, seCatPaths, imageLog=None, imageKeys=None,
-        defaultsPath=None, configs=None, checks=None, workDir="scamp",
-        useFileRefs=False):
+            defaultsPath=None, configs=None, checks=None, workDir="scamp",
+            useFileRefs=False):
         self.catalogPaths = seCatPaths
         self.useFileRefs = useFileRefs
         self.imageLog = imageLog
@@ -390,7 +390,7 @@ class Scamp(Astromatic):
     
     @classmethod
     def from_db(cls, imageLog, imageKeys, seCatKey, defaultsPath=None,
-        configs=None, checks=None, workDir='scamp', useFileRefs=False):
+            configs=None, checks=None, workDir='scamp', useFileRefs=False):
         """Construct a SCAMP run from an image log database."""
         records = imageLog.get_images(imageKeys, [seCatKey])
         seCatPaths = [records[imageKey][seCatKey] for imageKey in imageKeys]
@@ -473,8 +473,8 @@ class SourceExtractor(Astromatic):
     """Represents a run of Terapix's Source Extractor."""
     
     def __init__(self, fitsPath, catalogName, weightPath=None,
-        weightType=None, psfPath=None, configs=None, workDir="sex",
-        defaultsPath="se/config.sex"):
+            weightType=None, psfPath=None, configs=None, workDir="sex",
+            defaultsPath="se/config.sex"):
         self.inputPath = fitsPath  # path to FITS image to be source-extracted
         self.catalogName = catalogName
         self.psfPath = psfPath
@@ -517,6 +517,7 @@ class SourceExtractor(Astromatic):
         """
         print checkType
         print self.checkList
+        print self.checkList.index(checkType)
         i = self.checkList.index(checkType)
         if i >= 0:
             path = self.checkPaths[i]
@@ -577,8 +578,8 @@ class BatchSourceExtractor(object):
     """Run Source Extractor in parallel on multiple processors. ImageLog is
     used to store results from each run."""
     def __init__(self, imageLog, imageKeys, imagePathKey, catalogKey,
-        weightKey=None, weightType=None, psfKey=None, configs={}, workDir="se",
-        defaultsPath="se/config.sex", catPostfix="se_cat"):
+            weightKey=None, weightType=None, psfKey=None, configs={},
+            workDir="se", defaultsPath="se/config.sex", catPostfix="se_cat"):
         super(BatchSourceExtractor, self).__init__()
         self.imageLog = imageLog
         self.imageKeys = imageKeys
@@ -634,7 +635,6 @@ class BatchSourceExtractor(object):
         # Insert results into the image log
         for (imageKey, se) in results:
             print imageKey, se
-            self.imageLog.set(imageKey, self.catalogKey, se.getCatalogPath())
             self.imageLog.set(imageKey, self.catalogKey, se.catalog_path())
             if self.checkKeyDict is not None:
                 for checkType, checkKey in self.checkKeyDict.iteritems():
@@ -660,8 +660,8 @@ def _workSE(args):
 
 class BatchPSFex(object):
     def __init__(self, imageLog, groupedImageKeys, catalogPathKey, psfKey,
-        configs=None, checkImages=None, checkPlots=None,
-        defaultsPath=None, workDir="psfex"):
+            configs=None, checkImages=None, checkPlots=None,
+            defaultsPath=None, xmlKey=None, workDir="psfex"):
         """Runs multiple PSFex instances over independent groups of image keys.
         
         :param imageLog: a ImageLog-compatible database instance.
@@ -673,12 +673,15 @@ class BatchPSFex(object):
             values are standard PSFex command line arguments.
         :param defaultsPath: path to where a PSFex configuration file can be
             found
+        :param xmlKey: key to install XML. If `None`, then PSFex will
+            not produce XML output.
         :param workDir: directory where PSFex outputs are saved.
         """
         self.imageLog = imageLog
         self.groupedImageKeys = groupedImageKeys
         self.catalogPathKey = catalogPathKey
         self.psfKey = psfKey
+        self.xmlKey = xmlKey
         self.configs = configs
         self.checkImages = checkImages
         self.checkPlots = checkPlots
@@ -687,14 +690,16 @@ class BatchPSFex(object):
     
     def run(self, debug=False):
         """Executes the multiprocessing PSFex run."""
-        imageLogHost = self.imageLog.url
-        imageLogPort = self.imageLog.port
+        dbArgs = {"url": self.imageLog.url,
+                  "port": self.imageLog.port,
+                  "dbname": self.imageLog.dbname,
+                  "cname": self.imageLog.cname}
         
         args = []
         for groupName, imageKeys in self.groupedImageKeys.iteritems():
             args.append((groupName, imageKeys, self.catalogPathKey,
                 self.psfKey, self.configs, self.checkImages, self.checkPlots,
-                self.defaultsPath, self.workDir, imageLogHost, imageLogPort))
+                self.defaultsPath, self.xmlKey, self.workDir, dbArgs))
         
         if debug:
             map(_run_batch_psfex, args)
@@ -706,14 +711,17 @@ class BatchPSFex(object):
 def _run_batch_psfex(args):
     """Worker function for executing PSFex from BatchPSFex.
     
-    The path to the PSF is stored under """
+    The path to the PSF is stored under `psfKey`."""
     groupName, imageKeys, catalogPathKey, psfKey, configs, checkImages, \
-        checkPlots, defaultsPath, workDir, url, port = args
-    imageLog = ImageLog(url=url, port=port)
+        checkPlots, defaultsPath, xmlKey, workDir, dbArgs = args
+    dbArgs = dict(dbArgs)  # in case we run in debug mode
+    dbname = dbArgs.pop('dbname')
+    cname = dbArgs.pop('cname')
+    imageLog = ImageLog(dbname, cname, **dbArgs)
     
     print "Running imageKeys:", imageKeys
     psfex = PSFex.from_db(imageLog, imageKeys, catalogPathKey, configs=configs,
-        defaultsPath=None, workDir=workDir)
+        xmlKey=xmlKey, defaultsPath=None, workDir=workDir)
     if checkImages is not None:
         psfex.set_check_images(checkImages, "psfex",
                 os.path.join(workDir, "checks"))
@@ -722,12 +730,15 @@ def _run_batch_psfex(args):
                 os.path.join(workDir, "plots"), plotType="PSC")
     psfex.run()
     psfex.save_psf_paths(psfKey)
+    if xmlKey is not None:
+        psfex.save_xml_paths()
 
 
 class PSFex(Astromatic):
     """Wrapper on the PSFex PSF-modelling software."""
     def __init__(self, catalogPaths, imageLog=None, imageKeys=None,
-        defaultsPath=None, configs=None, workDir='psfex', groupName=None):
+            defaultsPath=None, configs=None, xmlKey=None,
+            workDir='psfex', groupName=None):
         super(PSFex, self).__init__()
         if type(catalogPaths) is str:
             self.catalogPaths = [catalogPaths]
@@ -736,9 +747,12 @@ class PSFex(Astromatic):
         self.imageLog = imageLog
         self.imageKeys = imageKeys
         self.configs = configs
+        self.xmlKey = xmlKey
         self.workDir = workDir
         # allows the input list to be named different in batch mode
         self.groupName = groupName
+        if self.groupName is None:
+            self.groupName = self.imageKeys[0]
         
         self.checkDir = None
         self.checkList = None
@@ -750,7 +764,7 @@ class PSFex(Astromatic):
     
     @classmethod
     def from_db(cls, imageLog, imageKeys, catalogPathKey,
-        configs=None, defaultsPath=None, workDir='psfex'):
+            configs=None, xmlKey=None, defaultsPath=None, workDir='psfex'):
         """Creates a PSFex run from an image log database.
         
         :param imageLog: a ImageLog-compatible database instance.
@@ -758,19 +772,24 @@ class PSFex(Astromatic):
             gathered.
         :param catalogPathKey: record field where the SE (Source Extractor)
             catalogs are found for each image
+        :param xmlKey: key to install XML. If `None`, then PSFex will
+            not produce XML output.
         :param configs: (optional) dictionary of PSFex settings. Keys and
             values are standard PSFex command line arguments.
         :param defaultsPath: path to where a PSFex configuration file can be
             found
         :param workDir: directory where PSFex outputs are saved.
         """
-        records = imageLog.get_images(imageKeys, catalogPathKey)
-        print "Image Log found record:", records
-        catalogPaths = [records[k][catalogPathKey] for k in imageKeys]
-        print "image keys:", imageKeys
-        print "catalogPaths:", catalogPaths
+        docs = imageLog.find({"_id": {"$in": imageKeys}},
+                fields=[catalogPathKey])
+        imageKeys = []
+        catalogPaths = []
+        for d in docs:
+            imageKeys.append(d['_id'])
+            catalogPaths.append(d[catalogPathKey])
         return cls(catalogPaths, imageLog=imageLog, imageKeys=imageKeys,
-            defaultsPath=defaultsPath, configs=configs, workDir=workDir)
+            defaultsPath=defaultsPath, configs=configs, xmlKey=xmlKey,
+            workDir=workDir)
     
     def set_check_images(self, checkList, prefix, checkDir):
         """Sets which check images should be made, and where they should be
@@ -837,6 +856,14 @@ class PSFex(Astromatic):
         """Makes the source extractor command (for CL execution).
         Returns a string.
         """
+        # Automatically make XML if we can install it
+        self.xmlPath = os.path.join(self.workDir, self.groupName + ".xml")
+        if self.xmlKey is None:
+            self.configs['WRITE_XML'] = "N"
+        else:
+            self.configs['WRITE_XML'] = "Y"
+            self.configs['XML_NAME'] = self.xmlPath
+
         # If more than 10 catalogs are being processed, a file list is written
         if len(self.catalogPaths) > 10:
             if self.groupName is not None:
@@ -906,3 +933,10 @@ class PSFex(Astromatic):
             psfPath = os.path.join(self.workDir,
                     os.path.splitext(os.path.basename(catPath))[0] + ".psf")
             self.imageLog.set(imageKey, psfKey, psfPath)
+
+    def save_xml_paths(self):
+        """Files the xml filepaths into image log under `xmlKey` for all
+        images."""
+        if self.xmlKey is None: return
+        for imageKey in self.imageKeys:
+            self.imageLog.set(imageKey, self.xmlKey, self.xmlPath)
