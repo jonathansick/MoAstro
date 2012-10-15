@@ -661,7 +661,7 @@ def _workSE(args):
 class BatchPSFex(object):
     def __init__(self, imageLog, groupedImageKeys, catalogPathKey, psfKey,
             configs=None, checkImages=None, checkPlots=None,
-            defaultsPath=None, xmlKey=None, workDir="psfex"):
+            defaultsPath=None, xmlKey=None, workDir="psfex", nThreads=None):
         """Runs multiple PSFex instances over independent groups of image keys.
         
         :param imageLog: a ImageLog-compatible database instance.
@@ -676,6 +676,7 @@ class BatchPSFex(object):
         :param xmlKey: key to install XML. If `None`, then PSFex will
             not produce XML output.
         :param workDir: directory where PSFex outputs are saved.
+        :param nThreads: number of processes to run if `debug` is `False`.
         """
         self.imageLog = imageLog
         self.groupedImageKeys = groupedImageKeys
@@ -687,6 +688,10 @@ class BatchPSFex(object):
         self.checkPlots = checkPlots
         self.defaultsPath = defaultsPath
         self.workDir = workDir
+        if nThreads is not None:
+            self.nThreads = nThreads
+        else:
+            self.nThreads = multiprocessing.cpu_count()
     
     def run(self, debug=False):
         """Executes the multiprocessing PSFex run."""
@@ -704,7 +709,7 @@ class BatchPSFex(object):
         if debug:
             map(_run_batch_psfex, args)
         else:
-            pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+            pool = multiprocessing.Pool(processes=self.nThreads)
             pool.map(_run_batch_psfex, args)
 
 
