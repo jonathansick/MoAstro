@@ -70,15 +70,15 @@ class ImageLog(object):
         for (imageKey, ext), datum in data:
             self.set(imageKey, key, datum, ext=ext)
 
-    def find(self, selector, images=None, fields=None, one=False):
+    def find(self, selector, images=None, one=False, **mdbArgs):
         """Wrapper around MongoDB `find()`."""
         selector = self._insert_query_mask(selector)
         if images is not None:
             selector.update({"_id": {"$in": images}})
         if one:
-            return self.c.find_one(selector, fields=fields)
+            return self.c.find_one(selector, **mdbArgs)
         else:
-            return self.c.find(selector, fields=fields)
+            return self.c.find(selector, **mdbArgs)
 
     def find_dict(self, selector, images=None, fields=None):
         """Analogous to find(), but formats the returned cursor
@@ -212,6 +212,7 @@ class ImageLog(object):
         if selector is None:
             selector = {}
         selector = self._insert_query_mask(selector)
+        selector.update({dataKeyOld: {"$exists": 1}})
         ret = self.c.update(selector,
                 {"$rename": {dataKeyOld: dataKeyNew}},
                 multi=multi, safe=True)
@@ -270,7 +271,8 @@ class ImageLog(object):
         for rec in self.getiter(selector, pathKey):
             imageKey = rec['_id']
             path = rec[pathKey]
-            os.remove(path)
+            if os.path.exists(path):
+                os.remove(path)
             print "Delete", imageKey, path
             self.c.update({"_id": imageKey}, {"$unset": pathKey})
     

@@ -635,6 +635,7 @@ class BatchSourceExtractor(object):
         for (imageKey, se) in results:
             print imageKey, se
             self.imageLog.set(imageKey, self.catalogKey, se.getCatalogPath())
+            self.imageLog.set(imageKey, self.catalogKey, se.catalog_path())
             if self.checkKeyDict is not None:
                 for checkType, checkKey in self.checkKeyDict.iteritems():
                     self.imageLog.set(imageKey, checkKey,
