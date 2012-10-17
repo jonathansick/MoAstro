@@ -267,16 +267,24 @@ class ImageLog(object):
             self.c.update({"_id": imageKey}, {"$set": {pathKey: newPath}})
     
     def delete_files(self, pathKey, selector=None):
-        """Deletes all files stored under pathKey, and the image log fields"""
+        """Deletes all files stored under pathKey, and the reference in the
+        image log.
+        
+        :param pathKey: data key for path. Can include dot syntax.
+        :param selector: (optional) MongoDB query dictionay.
+        """
         if selector is None:
             selector = {}
         selector = self._insert_query_mask(selector)
-        for rec in self.getiter(selector, pathKey):
-            imageKey = rec['_id']
-            path = rec[pathKey]
+        selector.update({pathKey: {"$exists": 1}})
+        for doc in self.c.find(selector, fields=[pathKey]):
+            imageKey = doc['_id']
+            try:
+                path = str(doc[pathKey])
+            except:
+                continue
             if os.path.exists(path):
                 os.remove(path)
-            print "Delete", imageKey, path
             self.c.update({"_id": imageKey}, {"$unset": pathKey})
     
     def print_rec(self, imageKey):
