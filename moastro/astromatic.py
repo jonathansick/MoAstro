@@ -593,12 +593,14 @@ class BatchSourceExtractor(object):
         self.defaultsPath = defaultsPath
         self.catPostfix = catPostfix
         self.checkDir = None
-        self.checkKeyDict = None
+        self.checkKeyDict = {}
     
     def set_check_images(self, checkKeyDict, checkDir):
         """
-        :param checkKeyDict: dictionary of `check type: image log field key`
-            to store path to check image.
+        :param checkKeyDict: dictionary specifying SE check image types, and
+            the image log keys to store paths to those images under.
+            Keys are check type (`SEGMENTATION`, etc), values are image log
+            keys.
         """
         self.checkDir = checkDir
         if os.path.exists(self.checkDir) is False:
@@ -636,10 +638,8 @@ class BatchSourceExtractor(object):
         for (imageKey, se) in results:
             print imageKey, se
             self.imageLog.set(imageKey, self.catalogKey, se.catalog_path())
-            if self.checkKeyDict is not None:
-                for checkType, checkKey in self.checkKeyDict.iteritems():
-                    self.imageLog.set(imageKey, checkKey,
-                            se.check_path(checkKey))
+        for checkType, checkKey in self.checkKeyDict.iteritems():
+            self.imageLog.set(imageKey, checkKey, se.check_path(checkType))
 
 
 def _workSE(args):
