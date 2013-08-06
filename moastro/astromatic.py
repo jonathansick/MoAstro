@@ -484,7 +484,7 @@ class SourceExtractor(Astromatic):
         super(SourceExtractor, self).__init__(configs=configs, workDir=workDir,
             defaultsPath=defaultsPath)
         
-        self.checkList = None
+        self.checkList = []
         
         # Set-up the check images
         # if checks is not None:
@@ -547,11 +547,13 @@ class SourceExtractor(Astromatic):
         self.add_to_configs('CATALOG_NAME', self.catalogPath)
         
         # Add all check image info to the configs dictionary
-        if self.checkList is not None:
+        if len(self.checkList) > 0:
             checkPathArgs = ",".join(self.checkPaths)
             checkTypeArgs = ",".join(self.checkList)
             self.add_to_configs('CHECKIMAGE_TYPE', checkTypeArgs)
             self.add_to_configs('CHECKIMAGE_NAME', checkPathArgs)
+        else:
+            self.add_to_configs('CHECKIMAGE_TYPE', "NONE")
         
         # Add weight images
         if (self.weightPath is not None) and (self.weightType is not None):
@@ -638,8 +640,8 @@ class BatchSourceExtractor(object):
         for (imageKey, se) in results:
             print imageKey, se
             self.imageLog.set(imageKey, self.catalogKey, se.catalog_path())
-        for checkType, checkKey in self.checkKeyDict.iteritems():
-            self.imageLog.set(imageKey, checkKey, se.check_path(checkType))
+            for checkType, checkKey in self.checkKeyDict.iteritems():
+                self.imageLog.set(imageKey, checkKey, se.check_path(checkType))
 
 
 def _workSE(args):
