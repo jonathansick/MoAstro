@@ -5,7 +5,11 @@ import shutil
 import glob
 import subprocess
 import multiprocessing
-import pyfits
+
+try:
+    from astropy.io import fits as pyfits
+except ImportError:
+    import pyfits
 
 from imagelog import ImageLog
 from dbtools import reach

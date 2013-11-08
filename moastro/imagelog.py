@@ -1,11 +1,14 @@
-import glob
 import os
 import shutil
 import pymongo
-import pyfits
 import subprocess
 import multiprocessing
 import warnings
+
+try:
+    from astropy.io import fits as pyfits
+except ImportError:
+    import pyfits
 
 from dbtools import DotReachable
 

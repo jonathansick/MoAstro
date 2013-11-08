@@ -6,19 +6,19 @@ Access the 2MASS survey as a local MongoDB.
 History
 -------
 2011-07-11 - Created by Jonathan Sick
-
 """
-
-__all__ = ['']
 
 import os
 import glob
 import gzip
 
 import pymongo
-from pymongo import ASCENDING, DESCENDING, GEO2D
+from pymongo import ASCENDING, GEO2D
 
-import pywcs
+try:
+    from astropy.wcs import WCS
+except ImportError:
+    from pywcs import WCS
 
 import auth
 
@@ -211,7 +211,7 @@ class PSC(object):
 
     def _make_spatial_header(self, header):
         """Make a spatial query spec from a PyFITS header instance."""
-        wcs = pywcs.WCS(header)
+        wcs = WCS(header)
         return self._make_spatial_wcs(wcs)
 
 
@@ -221,6 +221,7 @@ def test_import_psc(testPath, host="localhost", port=27017, dbname="twomass",
     f = open(testPath, 'r')
     PSC.import_psc(f, drop=drop)
     f.close()
+
 
 def import_compressed_psc(dataDir, host="localhost", port=27017,
         dbname="twomass", cname="psc",):
@@ -239,6 +240,7 @@ def import_compressed_psc(dataDir, host="localhost", port=27017,
         drop = False # only drop on first file import!
     PSC.index_space_color()
 
+
 def reset_psc(dbname="twomass", cname="psc"):
     """Drops the 2MASS PSC collection!"""
     db = pymongo.Connection()[dbname]
@@ -247,4 +249,3 @@ def reset_psc(dbname="twomass", cname="psc"):
 
 if __name__ == '__main__':
     pass
-
