@@ -264,6 +264,12 @@ class Swarp(Astromatic):
                 if os.path.exists(newHeaderPath):
                     os.remove(newHeaderPath)  # clean out old copies at dest.
                 shutil.copy(origHeaderPath, newHeaderPath)
+
+        # Make resampling directory if it does not exist
+        if "RESAMPLE_DIR" in self.configs:
+            resamp_dir = self.configs['RESAMPLE_DIR']
+            if not os.path.exists(resamp_dir):
+                os.makedirs(resamp_dir)
         
         # Form command with the inputlist
         command = "swarp @%s" % listPath
