@@ -4,11 +4,10 @@ import pymongo
 import subprocess
 import multiprocessing
 import warnings
+import fnmatch
 
-try:
-    from astropy.io import fits as pyfits
-except ImportError:
-    import pyfits
+import astropy.io.fits
+import astropy.wcs
 
 from dbtools import DotReachable
 
@@ -437,3 +436,204 @@ def _funpack_worker(args):
     imageKey, command, outputPath = args
     subprocess.call(command, shell=True)
     return imageKey, outputPath
+
+
+class MEFImporter(object):
+    """Base class for importing MEF (multi-extension FITS) into an imagelog.
+    
+    The user subclass that inherits :class:`MEFImporter` should do several
+    things:
+
+    1. Set the ``exts`` attribute to be a list of FITS extension integers
+       to import. If the sole FITS image is in the PrimaryHDU, then leave
+       this as an empty list. Otherwise, e.g., for WIRCam with images in
+       four extension HDUs, set ``self.exts = [1, 2, 3, 4]``.
+    2. Set or extend the ``copy_keys`` attribute to be a list of FITS header
+       keys to import from the Primary HDU into the base image document.
+    3. Set or extend the ``copy_ext_keys`` attribute to be a list of FITS
+       header keys to import from each image extension.
+    4. Implement ``generate_id`` to generate a document ``_id`` string.
+    5. (optional) Implement ``post_base_ingest`` to modify the base image log
+       document (a dict) after the header keys have been imported. This can
+       be useful to add additional metadata, or to change the metadata schema
+       from that in the FITS header.
+    6. (optional) Implement ``post_ext_ingest`` to modify the document for
+       each image extension after the extension header keys are imported.
+
+    Parameters
+    ----------
+    dbname : str
+        Name of MongoDB database.
+    cname : str
+        Name of MongoDB collection.
+    url : str
+        URL of MongoDB server.
+    port : int
+        Port of MongoDB server.
+    """
+    def __init__(self, dbname, cname, url="localhost", port=27017):
+        super(MEFImporter, self).__init__()
+        self.connection = pymongo.MongoClient(url, port)
+        self.db = self.connection[dbname]
+        self.db.add_son_manipulator(DotReachable())
+        self.c = self.db[cname]
+
+        # Defaults
+        self.exts = []
+        self.copy_keys = ['OBJECT', 'FILTER', 'MJDATE',
+            'EXPTIME', 'INSTRUME', 'RA', 'DEC', 'AIRMASS', 'UTC-OBS']
+        self.copy_ext_keys = []
+    
+    def ingest(self, base_dir, suffix=".fits", recursive=True, preview=False):
+        """Runs the import pipeline.
+        
+        Parameters
+        ----------
+
+        base_dir : str
+            Directory where FITS files can be found.
+        suffix : str
+            Suffix of files to import. That is, all paths ending with this
+            suffix are imported. This import fits files by default. But
+            change to e.g., `'s.fits'` to get processed CFHT images, or
+            `'.fits.fz'` to look for encrypted FITS images.
+        recursive : bool
+            If `True`, then the pipeline walks through directories contained
+            in the base directory, looking for FITS files.
+        preview : bool
+            If `True` then the documents are *not* inserted into MongoDB,
+            but only printed. Useful for debugging the ingest.
+        """
+        for path in MEFImporter.all_files(base_dir, "*" + suffix,
+                single_level=recursive):
+            self._import_fits(path)
+
+    def ingest_one(self, path, preview=False):
+        """Ingest a single FITS file at ``path``.
+
+        Parameters
+        ----------
+        path : str
+            Path to the FITS image.
+        preview : bool
+            If `True` then the documents are *not* inserted into MongoDB,
+            but only printed. Useful for debugging the ingest.
+        """
+        self._import_fits(path, preview)
+
+    @staticmethod
+    def all_files(root, pattern, single_level=False):
+        """Yield file paths matching a pattern.
+        
+        Adapted from Python Cookbook, 2nd Ed. 2.16.
+        """
+        for path, subdirs, files in os.walk(root):
+            files.sort()
+            for name in files:
+                if fnmatch.fnmatch(name, pattern):
+                    yield os.path.join(path, name)
+                    break
+            if single_level:
+                break
+
+    def _import_fits(self, path, preview):
+        """Import a FITS file at ``path``."""
+        doc = {}
+        f = astropy.io.fits.open(path)
+        doc['_id'] = self.generate_id(path, f[0].header)
+        doc.update(self._ingest_fits_base(path, f[0].header, f))
+        for ext in self.exts:
+            doc[str(ext)] = self._ingest_fits_ext(f[ext].header, f)
+        # Put an overall footprint into doc root
+        if len(self.exts) == 1:
+            doc['footprint'] = MEFImporter.chip_footprint_polygon(
+                f[self.exts[0]].header, f)
+        elif len(self.exts) > 1:
+            doc['footprint'] = self._combine_footprint(doc)
+        f.close()
+        if preview:
+            print doc
+        else:
+            # Insert into MongoDB
+            self.c.save(doc)
+
+    def generate_id(self, path, header):
+        """Generate the object id for this image.
+        
+        Should be implemented by user. Raises ``NotImplementedError``
+        otherwise.
+        """
+        raise NotImplementedError
+
+    def _ingest_fits_base(self, path, header, hdulist):
+        """Build document from base FITS header."""
+        doc = {}
+        # Create a footprint if this is an image extension
+        if len(self.exts) == 0:
+            doc['footprint'] = MEFImporter.chip_footprint_polygon(header,
+                    hdulist)
+        for key in self.copy_keys:
+            try:
+                doc[key] = header[key]
+            except:
+                continue
+
+        # Call user method
+        self.post_base_ingest(doc, path, header)
+        return doc
+
+    def post_base_ingest(self, doc, path, header):
+        """Hook for modifying document after ingesting the base FITS header.
+
+        This method can be implemented by the user to add additional data
+        to the base image log document. Simply add data to to the ``dict``
+        ``doc``.
+        """
+        pass
+
+    def _ingest_fits_ext(self, header, hdulist):
+        """Build document for an individual extension/chip."""
+        doc = {}
+        doc['footprint'] = MEFImporter.chip_footprint_polygon(header, hdulist)
+        for key in self.copy_ext_keys:
+            try:
+                doc[key] = header[key]
+            except:
+                continue
+
+        # Call user method
+        self.post_ext_ingest(doc, header)
+        return doc
+
+    def post_ext_ingest(self, doc, header):
+        """Hook for modifying document after ingesting an extension header.
+        
+        This method can be implemented by the user to add additional data
+        to the *extension-specific* image log document. Simply add data to
+        to the ``dict`` ``doc``.
+        """
+        pass
+
+    def _combine_footprint(self, doc):
+        """Build a footprint to encompass all detectors."""
+        ras = []
+        decs = []
+        for ext in self.exts:
+            poly = doc['ext']['footprint']
+            for (ra, dec) in poly:
+                ras.append(ra)
+                decs.append(dec)
+        output_poly = [[min(ras), min(decs)], [max(ras), min(decs)],
+                [max(ras), max(decs)], [min(ras), max(decs)]]
+        return output_poly
+    
+    @staticmethod
+    def chip_footprint_polygon(header, hdulist):
+        """Create a Mongo-compatible polygon representing the chip footprint
+        in equatorial cordinates. The polygon is a length-4 list, populated
+        with length-2 lists of RA, Dec vertices.
+        """
+        wcs = astropy.wcs.WCS(header=header, fobj=hdulist)
+        footprint = wcs.calcFootprint(header=header)
+        footprint_lst = footprint.tolist()  # cast as a list of floats
+        return footprint_lst
