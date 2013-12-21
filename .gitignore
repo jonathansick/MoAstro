@@ -2,6 +2,8 @@
 *.o
 *.so
 *.pyc
+*/version.py
 doc/_build/
 moastro.egg-info/
 build/
+dist/
