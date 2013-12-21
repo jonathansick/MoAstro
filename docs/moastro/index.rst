@@ -17,6 +17,7 @@ Contents
    :maxdepth: 2
 
    intro
+   imagelog_usage
    api/index
 
 
