@@ -8,3 +8,4 @@ API Documentation
    astromatic
    twomass
    dbtools
+   settings
