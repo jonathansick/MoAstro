@@ -57,3 +57,33 @@ def read_settings(path=os.getenv('MOASTROCONFIG',
         log = logging.getLogger('moastro')
         log.warning("{path} config file not found".format(path=path))
         return {}
+
+
+def locate_server(servername):
+    """Return the URL and port of a named server.
+    
+    Parameters
+    ----------
+
+    servername : str
+        Name of the server, matching that in the ``.moastro.json`` file.
+
+
+    Returns
+    -------
+
+    url : str
+        URL/hostname of the MongoDB server.
+    port : int
+        Port that the MongoDB server connects on.
+    """
+    conf = read_settings()
+    try:
+        url = conf['servers'][servername]['url']
+        port = conf['servers'][servername]['port']
+    except KeyError:
+        log = logging.getLogger('moastro')
+        log.warning("Bad config for server named '{n}'".format(n=servername))
+        url = 'localhost'  # try defaults
+        port = 27017
+    return url, port
