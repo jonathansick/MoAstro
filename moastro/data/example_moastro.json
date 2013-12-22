@@ -1,0 +1,3 @@
+{"servers":
+    {"local": {"url": "localhost", "port": 27017}}
+}
