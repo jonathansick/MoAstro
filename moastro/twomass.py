@@ -2,10 +2,6 @@
 # encoding: utf-8
 """
 Access the 2MASS survey as a local MongoDB.
-
-History
--------
-2011-07-11 - Created by Jonathan Sick
 """
 
 import os
@@ -14,13 +10,10 @@ import gzip
 
 import pymongo
 from pymongo import ASCENDING, GEO2D
+from astropy.wcs import WCS
 
-try:
-    from astropy.wcs import WCS
-except ImportError:
-    from pywcs import WCS
+from .dbtools import make_connection
 
-import auth
 
 PSC_FORMAT = (('ra',float),('dec',float),('err_maj',float),('err_min',float),
     ('err_ang',int),('designation',unicode),('j_m',float),('j_cmsig',float),
@@ -40,40 +33,63 @@ PSC_FORMAT = (('ra',float),('dec',float),('err_maj',float),('err_min',float),
     ('nopt_mchs',int),('ext_key',int),('scan_key',int),('coadd_key',int),
     ('coadd',int))
 
+
 class PSC(object):
-    """2MASS Point Source Catalog representation in MongoDB."""
-    def __init__(self, host="localhost", port=27017, dbname="twomass",
-            cname="psc"):
-        self.host = host
-        self.port = port
-        self.dbname = dbname
-        self.cname = cname
+    """2MASS Point Source Catalog representation in MongoDB.
+    
+    Parameters
+    ----------
+
+    dbname : str
+        Name of MongoDB database.
+    cname : str
+        Name of MongoDB collection.
+    server : str
+        Name of the MongoDB server, as specified in ``~/.moastro.json``. If
+        ``None``, then the values of ``url`` and ``port`` will be adopted
+        instead.
+    url : str
+        URL of MongoDB server.
+    port : int
+        Port of MongoDB server.
+    """
+    def __init__(self, dbname='twomass', cname='psc',
+            server=None, url="localhost", port=27017):
+        conn = make_connection(server=server, url=url, port=port)
+        db = conn[dbname]
+        self.c = db[cname]
 
         self.default_fields = ['coord', 'j_m', 'h_m', 'k_m']
 
-        conn = pymongo.Connection(host=host, port=port)
-        cred = auth.Credentials()
-        db = cred.connect_db(dbname, c=conn)
-        self.c = db[cname]
-
     @classmethod
-    def import_psc(cls, f, host="localhost", port=27017, dbname="twomass",
-            cname="psc", drop=False):
+    def import_psc(cls, f, dbname="twomass", cname="psc", 
+            server=None, url="localhost", port=27017,
+            drop=False):
         """Build a PSC database in MongoDB from the ascii data streams.
         
         Parameters
         ----------
-        f : a file-like object conforming to the 2MASS PSC file spec
-        host : URL of the MongoDB host
-        port : port number of MongoDB host
-        dbname : name of the MongoDB database
-        cname : name of the collection holding PSC documents
-        drop : set to `True` if any existing PSC collection should be dropped
-           useful for re-doing an import.
+
+        f : file-like object
+            A file-like object conforming to the 2MASS PSC file spec.
+        dbname : str
+            Name of MongoDB database.
+        cname : str
+            Name of MongoDB collection.
+        server : str
+            Name of the MongoDB server, as specified in ``~/.moastro.json``. If
+            ``None``, then the values of ``url`` and ``port`` will be adopted
+            instead.
+        url : str
+            URL of MongoDB server.
+        port : int
+            Port of MongoDB server.
+        drop : bool
+            Set to `True` if any existing PSC collection should be dropped
+            useful for re-doing an import.
         """
-        c = pymongo.Connection(host=host, port=port)
-        cred = auth.Credentials()
-        db = cred.connect_db("twomass", c=c)
+        conn = make_connection(server=server, url=url, port=port)
+        db = conn[dbname]
         if drop:
             db.drop_collection(cname)
         collection = db[cname]
@@ -106,16 +122,15 @@ class PSC(object):
         #f.close()
 
     @classmethod
-    def index_space_color(cls, host="localhost", port=27017, dbname="twomass",
-            cname="psc"):
+    def index_space_color(cls, dbname="twomass", cname="psc",
+            server=None, url="localhost", port=27017):
         """Generates an geospatial+colour+magnitude index.
         
         The index is constructed so that RA,Dec is indexed first as this
         is most useful in using 2MASS for targeted applications.
         """
-        c = pymongo.Connection(host=host, port=port)
-        cred = auth.Credentials()
-        db = cred.connect_db("twomass", c=c)
+        conn = make_connection(server=server, url=url, port=port)
+        db = conn[dbname]
         collection = db[cname]
 
         collection.ensure_index([("coord",GEO2D),("j_m-k_m",ASCENDING),

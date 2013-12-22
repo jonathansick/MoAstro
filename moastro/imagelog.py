@@ -1,6 +1,5 @@
 import os
 import shutil
-import pymongo
 import subprocess
 import multiprocessing
 import warnings
@@ -9,7 +8,7 @@ import fnmatch
 import astropy.io.fits
 import astropy.wcs
 
-from dbtools import DotReachable
+from .dbtools import DotReachable, make_connection
 
 
 class ImageLog(object):
@@ -22,17 +21,34 @@ class ImageLog(object):
     a query that will always be appending to the user's query to ensure
     that only the requested types of data are returned. For example, this can
     be a query to only accept 'MegaPrime' under the `INSTRUME` key.
+
+
+    Parameters
+    ----------
+
+    dbname : str
+        Name of MongoDB database.
+    cname : str
+        Name of MongoDB collection.
+    server : str
+        Name of the MongoDB server, as specified in ``~/.moastro.json``. If
+        ``None``, then the values of ``url`` and ``port`` will be adopted
+        instead.
+    url : str
+        URL of MongoDB server.
+    port : int
+        Port of MongoDB server.
     """
-    def __init__(self, dbname, cname, url="localhost", port=27017):
+    def __init__(self, dbname, cname, server=None, url="localhost", port=27017):
         super(ImageLog, self).__init__()
-        connection = pymongo.Connection(url, port)
+        connection = make_connection(server=server, url=url, port=port)
         self.db = connection[dbname]
         self.db.add_son_manipulator(DotReachable())
         self.c = self.db[cname]
         self.dbname = dbname
         self.cname = cname
-        self.url = url
-        self.port = port
+        self.url = connection.host
+        self.port = connection.port
         self.queryMask = {}
         self.exts = ["0"]
     
@@ -462,18 +478,23 @@ class MEFImporter(object):
 
     Parameters
     ----------
+
     dbname : str
         Name of MongoDB database.
     cname : str
         Name of MongoDB collection.
+    server : str
+        Name of the MongoDB server, as specified in ``~/.moastro.json``. If
+        ``None``, then the values of ``url`` and ``port`` will be adopted
+        instead.
     url : str
         URL of MongoDB server.
     port : int
         Port of MongoDB server.
     """
-    def __init__(self, dbname, cname, url="localhost", port=27017):
+    def __init__(self, dbname, cname, server=None, url="localhost", port=27017):
         super(MEFImporter, self).__init__()
-        self.connection = pymongo.MongoClient(url, port)
+        self.connection = make_connection(server=server, url=url, port=port)
         self.db = self.connection[dbname]
         self.db.add_son_manipulator(DotReachable())
         self.c = self.db[cname]
