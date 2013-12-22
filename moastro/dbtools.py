@@ -2,10 +2,39 @@
 # encoding: utf-8
 """
 Utility classes/functions for using MongoDB
-
-2012-05-03 - Created by Jonathan Sick
 """
 from pymongo.son_manipulator import SONManipulator
+import pymongo
+
+from .settings import locate_server
+
+
+def make_connection(server=None, url='localhost', port=27017):
+    """Factory for MongoDB connections.
+
+    This function will attempt to connect to the named server, and fall back
+    to the URL and port settings if a server is not named.
+    
+    Parameters
+    ----------
+
+    server : str
+        Name of the server, matching that in the ``.moastro.json`` file.
+    url : str
+        URL/hostname of the MongoDB server.
+    port : int
+        Port that the MongoDB server connects on.
+
+    Returns
+    -------
+
+    connection : obj
+        A PyMongo connection instance.
+    """
+    if server:
+        return pymongo.MongoClient(*locate_server(server))
+    else:
+        return pymongo.MongoClient(url, port)
 
 
 def reach(doc, key):
@@ -88,6 +117,5 @@ def test_reach():
 
 if __name__ == '__main__':
     import pprint
-    import pymongo
     test_reachdoc()
     test_reach()
