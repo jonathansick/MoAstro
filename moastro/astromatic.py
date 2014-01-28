@@ -267,9 +267,11 @@ class Swarp(Astromatic):
 
         # Make resampling directory if it does not exist
         if "RESAMPLE_DIR" in self.configs:
-            resamp_dir = self.configs['RESAMPLE_DIR']
-            if not os.path.exists(resamp_dir):
-                os.makedirs(resamp_dir)
+            self._resamp_dir = self.configs['RESAMPLE_DIR']
+            if not os.path.exists(self._resamp_dir):
+                os.makedirs(self._resamp_dir)
+        else:
+            self._resamp_dir = ""  # for resampled_paths() method
         
         # Form command with the inputlist
         command = "swarp @%s" % listPath
@@ -288,6 +290,51 @@ class Swarp(Astromatic):
     def mosaic_paths(self):
         """:return: tuple of (mosaic path, mosaic weight path)."""
         return self.mosaicPath, self.mosaicWeightPath
+
+    def resampled_paths(self, exts, stringify_exts=True):
+        """Return the paths to resampled images created by Swarp.
+        
+        Parameters
+        ----------
+        exts : sequence of `int`
+            Integer indices of the MEF extension to get resampled images for.
+            E.g., the WIRCam camera has 4 chips (and 4 FITS extensions) so
+            ``exts=(1, 2, 3, 4)``.
+        stringify_exts : bool
+            If ``True``, the extension numbers in the returned dictionary will
+            be converted to ``str`` to be compatible with JSON (for inserting
+            into MongoDB).
+
+        Returns
+        -------
+        resamp_paths : list
+            Sequence of resampled path dictionaries for each input image, in
+            the same order as paths were input. Each entry is a dictionary,
+            keyed by the image extension number, whose value is the path
+            to the resampled FITS image for this chip.
+        resamp_wpaths : list
+            Same as ``resamp_paths``, but for the weight images.
+        """
+        resamp_paths = []
+        resamp_wpaths = []
+        for source_path in self.imagePaths:
+            src_root = os.path.splitext(os.path.basename(source_path))[0]
+            im_paths = {}
+            im_wpaths = {}
+            for ext in exts:
+                resamp_path = os.path.join(self._resamp_dir,
+                        src_root + ".%04i.resamp.fits" % ext)
+                resamp_wpath = os.path.join(self._resamp_dir,
+                        src_root + ".%04i.resamp.weight.fits" % ext)
+                if stringify_exts:
+                    ext_id = str(ext)
+                else:
+                    ext_id = ext
+                im_paths[ext_id] = resamp_path
+                im_wpaths[ext_id] = resamp_wpath
+            resamp_paths.append(im_paths)
+            resamp_wpaths.append(im_wpaths)
+        return resamp_paths, resamp_wpaths
     
     def write_input_file_list(self, paths, name="list"):
         """Override the Terapix class's method so that lists of imagePaths,
