@@ -303,7 +303,7 @@ class ImageLog(object):
                 continue
             if os.path.exists(path):
                 os.remove(path)
-            self.c.update({"_id": imageKey}, {"$unset": pathKey})
+            self.c.update({"_id": imageKey}, {"$unset": {pathKey: 1}})
     
     def print_rec(self, imageKey):
         """Pretty-prints the record of `imageKey`"""
