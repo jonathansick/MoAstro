@@ -322,10 +322,16 @@ class Swarp(Astromatic):
             im_paths = {}
             im_wpaths = {}
             for ext in exts:
-                resamp_path = os.path.join(self._resamp_dir,
-                        src_root + ".%04i.resamp.fits" % ext)
-                resamp_wpath = os.path.join(self._resamp_dir,
-                        src_root + ".%04i.resamp.weight.fits" % ext)
+                if ext == 0:
+                    resamp_path = os.path.join(self._resamp_dir,
+                            src_root + ".resamp.fits")
+                    resamp_wpath = os.path.join(self._resamp_dir,
+                            src_root + ".resamp.weight.fits")
+                else:
+                    resamp_path = os.path.join(self._resamp_dir,
+                            src_root + ".%04i.resamp.fits" % ext)
+                    resamp_wpath = os.path.join(self._resamp_dir,
+                            src_root + ".%04i.resamp.weight.fits" % ext)
                 if stringify_exts:
                     ext_id = str(ext)
                 else:
