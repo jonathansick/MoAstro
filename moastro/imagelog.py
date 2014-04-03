@@ -492,7 +492,8 @@ class MEFImporter(object):
     port : int
         Port of MongoDB server.
     """
-    def __init__(self, dbname, cname, server=None, url="localhost", port=27017):
+    def __init__(self, dbname, cname, server=None,
+            url="localhost", port=27017):
         super(MEFImporter, self).__init__()
         self.connection = make_connection(server=server, url=url, port=port)
         self.db = self.connection[dbname]
@@ -527,7 +528,7 @@ class MEFImporter(object):
         """
         for path in MEFImporter.all_files(base_dir, "*" + suffix,
                 single_level=recursive):
-            self._import_fits(path)
+            self._import_fits(path, preview)
 
     def ingest_one(self, path, preview=False):
         """Ingest a single FITS file at ``path``.
@@ -574,6 +575,7 @@ class MEFImporter(object):
         f.close()
         if preview:
             print doc
+            print doc.keys()
         else:
             # Insert into MongoDB
             self.c.save(doc)
@@ -640,7 +642,7 @@ class MEFImporter(object):
         ras = []
         decs = []
         for ext in self.exts:
-            poly = doc['ext']['footprint']
+            poly = doc[str(ext)]['footprint']
             for (ra, dec) in poly:
                 ras.append(ra)
                 decs.append(dec)
