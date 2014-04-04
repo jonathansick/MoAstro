@@ -528,6 +528,7 @@ class MEFImporter(object):
         """
         for path in MEFImporter.all_files(base_dir, "*" + suffix,
                 single_level=recursive):
+            print path
             self._import_fits(path, preview)
 
     def ingest_one(self, path, preview=False):
@@ -554,7 +555,7 @@ class MEFImporter(object):
             for name in files:
                 if fnmatch.fnmatch(name, pattern):
                     yield os.path.join(path, name)
-                    break
+                    # break
             if single_level:
                 break
 
