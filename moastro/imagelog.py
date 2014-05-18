@@ -128,8 +128,8 @@ class ImageLog(object):
         cursor = self.find(selector, images=images, fields=[field])
         return cursor.distinct(field)
 
-    def compress_fits(self, pathKey, selector={}, candidateImages=None,
-            alg="Rice", q=4, delete=False):
+    def compress_fits(self, path_key, selector={},
+                      alg="Rice", q=4, delete=False):
         """:param alg: Compression algorithm. Any of:
         * Rice
         * gzip
@@ -138,26 +138,34 @@ class ImageLog(object):
             deleted
         """
         algs = {"Rice": "-r", "gzip": "-g"}
+        assert alg in algs
         
-        records = self.getiter(selector, pathKey,
-                candidateImages=candidateImages)
+        docs = self.find(selector, fields=[path_key], timeout=False)
         
-        optList = []
+        opt_list = []
         if alg == "Rice":
-            optList.append("%s -q %i" % (algs[alg], q))
+            opt_list.append("%s -q %i" % (algs[alg], q))
+            ext = ".fz"
         elif alg == "gzip":
-            optList.append(algs[alg])
+            opt_list.append("%s -q 0" % algs[alg])
+            ext = ".fz"
         if delete == True:
-            optList.append("-D")
-        options = " ".join(optList)
+            opt_list.append("-Y -D")
+        options = " ".join(opt_list)
         
-        for rec in records:
-            origPath = rec[pathKey]
+        for doc in docs:
+            orig_path = doc[path_key]
             # Compress with fpack
-            subprocess.call("fpack %s %s" % (options, origPath), shell=True)
-            # Update filename with .fz extension
-            outputPath = origPath + ".fz"
-            self.set(rec['_id'], pathKey, outputPath)
+            command = "fpack %s %s" % (options, orig_path)
+            print command
+            subprocess.call(command, shell=True)
+            if not os.path.splitext(orig_path)[1] == ".fz":
+                output_path = orig_path + ext
+            else:
+                output_path = orig_path
+            print output_path
+            assert os.path.exists(output_path)
+            self.set(doc['_id'], path_key, output_path)
     
     def decompress_fits(self, pathKey, decompKey=None,
             decompDir=None, selector={}, delete=False, overwrite=False,
