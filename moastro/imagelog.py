@@ -666,6 +666,6 @@ class MEFImporter(object):
         with length-2 lists of RA, Dec vertices.
         """
         wcs = astropy.wcs.WCS(header=header, fobj=hdulist)
-        footprint = wcs.calcFootprint(header=header)
+        footprint = wcs.calc_footprint(header=header)
         footprint_lst = footprint.tolist()  # cast as a list of floats
         return footprint_lst
