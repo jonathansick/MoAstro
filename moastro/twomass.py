@@ -218,7 +218,7 @@ class PSC(object):
 
     def _make_spatial_wcs(self, wcs):
         """Make a spatial query spec from a PyWCS WCS instance."""
-        poly = wcs.calcFootprint() # (4,2) numpy array
+        poly = wcs.calc_footprint() # (4,2) numpy array
         allRA = [float(c[0]) for c in poly]
         allDec = [float(c[1]) for c in poly]
         verts = zip(allRA, allDec)
