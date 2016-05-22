@@ -11,6 +11,8 @@ import gzip
 import pymongo
 from pymongo import ASCENDING, GEO2D
 from astropy.wcs import WCS
+import astropy.units as u
+from astropy.coordinates import SkyCoord
 
 from .dbtools import make_connection
 
@@ -64,7 +66,7 @@ class PSC(object):
     @classmethod
     def import_psc(cls, f, dbname="twomass", cname="psc", 
             server=None, url="localhost", port=27017,
-            drop=False):
+            drop=False, center=None, radius=None):
         """Build a PSC database in MongoDB from the ascii data streams.
         
         Parameters
@@ -110,6 +112,11 @@ class PSC(object):
                 elif name == "glon": glon = dtype(item)
                 elif name == "glat": glat = dtype(item)
                 else: doc[name] = dtype(item)
+            if center is not None:
+                radec = SkyCoord(ra=ra * u.degree, dec=dec * u.degree)
+                if center.separation(radec) > radius:
+                    # skip stars outside radius
+                    continue
             # Insert geospatial fields
             doc['coord'] = (ra, dec)
             doc['galactic'] = (glon,glat)
@@ -239,7 +246,7 @@ def test_import_psc(testPath, host="localhost", port=27017, dbname="twomass",
 
 
 def import_compressed_psc(dataDir, host="localhost", port=27017,
-        dbname="twomass", cname="psc",):
+        dbname="twomass", cname="psc", center=None, radius=None):
     """Import decompressed PSC text catalogs from dataDir.
     
     The psc collection is dropped before this operation.
@@ -248,9 +255,11 @@ def import_compressed_psc(dataDir, host="localhost", port=27017,
     drop = True
     for filePath in filePaths:
         print "Loading %s" % filePath
+        print "Search from", center
+        print "Radius", radius
         f = gzip.open(filePath, 'rb') # decompress on the file
         # Decompress the file
-        PSC.import_psc(f, drop=drop)
+        PSC.import_psc(f, drop=drop, center=center, radius=radius)
         f.close()
         drop = False # only drop on first file import!
     PSC.index_space_color()
