@@ -10,6 +10,7 @@ import gzip
 
 import pymongo
 from pymongo import ASCENDING, GEO2D
+import numpy as np
 from astropy.wcs import WCS
 import astropy.units as u
 from astropy.coordinates import SkyCoord
@@ -66,7 +67,10 @@ class PSC(object):
     @classmethod
     def import_psc(cls, f, dbname="twomass", cname="psc", 
             server=None, url="localhost", port=27017,
-            drop=False, center=None, radius=None):
+            drop=False, center=None, radius=None,
+            fields=('j_m', 'j_cmsig', 'j_msigcom', 'j_snr',
+                    'h_m', 'h_cmsig', 'h_msigcom', 'h_snr',
+                    'k_m', 'k_cmsig', 'k_msigcom', 'k_snr')):
         """Build a PSC database in MongoDB from the ascii data streams.
         
         Parameters
@@ -99,6 +103,9 @@ class PSC(object):
         colourIndices = (('j_m','h_m'),('j_m','k_m'),('h_m','k_m'))
         
         #f = open(dataPath, 'r')
+        docs = []
+        ra_coords = []
+        dec_coords = []
         for line in f:
             line.strip() # strip newline
             items = line.split("|")
@@ -107,17 +114,19 @@ class PSC(object):
                 if item == "\N": continue # ignore null values
                 # Don't add spatial quantities directly; storing (RA,Dec) and
                 # (long, lat) as tuples lets us make geospatial indices
-                if name == "ra": ra = dtype(item)
-                elif name == "dec": dec = dtype(item)
-                elif name == "glon": glon = dtype(item)
-                elif name == "glat": glat = dtype(item)
-                else: doc[name] = dtype(item)
-            if center is not None:
-                radec = SkyCoord(ra=ra * u.degree, dec=dec * u.degree)
-                if center.separation(radec) > radius:
-                    # skip stars outside radius
-                    continue
+                if name == "ra":
+                    ra = dtype(item)
+                elif name == "dec":
+                    dec = dtype(item)
+                elif name == "glon":
+                    glon = dtype(item)
+                elif name == "glat":
+                    glat = dtype(item)
+                elif name in fields:
+                    doc[name] = dtype(item)
             # Insert geospatial fields
+            ra_coords.append(ra)
+            dec_coords.append(dec)
             doc['coord'] = (ra, dec)
             doc['galactic'] = (glon,glat)
             # Pre-compute colours
@@ -125,8 +134,17 @@ class PSC(object):
                 colourName = "%s-%s" % (c1, c2)
                 if (c1 in doc) and (c2 in doc):
                     doc[colourName] = doc[c1] - doc[c2]
-            collection.insert(doc)
-        #f.close()
+            docs.append(doc)
+        ra_coords = np.array(ra_coords) * u.degree
+        dec_coords = np.array(dec_coords) * u.degree
+        star_coords = SkyCoord(ra_coords, dec_coords)
+        if center is not None:
+            selected = np.where(center.separation(star_coords) < radius)[0]
+            for i in selected:
+                collection.insert(docs[i])
+        else:
+            for doc in docs:
+                collection.insert(doc)
 
     @classmethod
     def index_space_color(cls, dbname="twomass", cname="psc",
